@@ -1,0 +1,1 @@
+curl -s -X POST 'http://localhost:8088/mediaproc/v1/record?Action=CreateLiveRecordTemplate&TemplateName=templat&Description=test&FlvParam.Enable=0&FlvParam.RecordInterval=1800&FlvParam.StorageTime=600&HlsParam.Enable=1&HlsParam.RecordInterval=1800&HlsParam.StorageTime=600'

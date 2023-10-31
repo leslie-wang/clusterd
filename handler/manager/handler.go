@@ -4,9 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/leslie-wang/clusterd/common/db"
+	"github.com/leslie-wang/clusterd/common/db/record"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,9 +22,11 @@ import (
 
 // Config is configuration for the handler
 type Config struct {
+	Driver    string
 	DBAddress string
 	DBUser    string
 	DBPass    string
+	DBName    string
 }
 
 // Handler is structure for recorder API
@@ -29,7 +35,8 @@ type Handler struct {
 	r    *mux.Router
 	lock *sync.Mutex
 
-	db *sql.DB
+	db       *sql.DB
+	recordDB *record.DB
 
 	runners map[string]time.Time // <runner_name, last checkin time>
 }
@@ -57,7 +64,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func (h *Handler) CreateRouter() *mux.Router {
 	if h.r == nil {
 		h.r = mux.NewRouter()
-		h.r.HandleFunc(types.URLRunnerID, h.register).Methods(http.MethodPost)
+		h.r.HandleFunc(types.URLRecord, h.record).Methods(http.MethodPost)
+		h.r.HandleFunc(types.BaseURL, h.register).Methods(http.MethodPost)
 		h.r.HandleFunc(types.URLRunner, h.listRunners).Methods(http.MethodGet)
 
 		h.r.HandleFunc(types.URLJob, h.createJob).Methods(http.MethodPost)
@@ -71,9 +79,25 @@ func (h *Handler) CreateRouter() *mux.Router {
 }
 
 // init will initialize the handler with corresponding handle function
-func (h *Handler) init() error {
+func (h *Handler) init() (err error) {
 	// prepare DB
-	return h.prepareDB()
+	h.db, err = db.OpenDB(types.Config{
+		Driver: h.cfg.Driver,
+		DBUser: h.cfg.DBUser,
+		DBPass: h.cfg.DBPass,
+		Addr:   h.cfg.DBAddress,
+		DBName: h.cfg.DBName,
+	})
+	if err != nil {
+		return
+	}
+	err = h.prepareJobDB()
+	if err != nil {
+		return
+	}
+
+	h.recordDB = record.NewDB(h.db)
+	return h.recordDB.Prepare()
 }
 
 func (h *Handler) testDB() {
@@ -137,4 +161,13 @@ func (h *Handler) testDB() {
 		fmt.Printf("%d: %s, %v\n", id, url, t)
 	}
 	fmt.Println("done")
+}
+
+func hasPrefixInQueryKeys(q url.Values, prefix string) bool {
+	for k := range q {
+		if strings.HasPrefix(k, prefix) {
+			return true
+		}
+	}
+	return false
 }

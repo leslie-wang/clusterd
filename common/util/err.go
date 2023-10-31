@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+var (
+	ErrNotSupportedAPI = errors.New("Not supported API")
+)
+
 func MakeStatusError(body io.Reader) error {
 	content, err := io.ReadAll(body)
 	if err != nil {

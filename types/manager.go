@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"github.com/leslie-wang/clusterd/common/model"
+	"time"
+)
 
 const (
 	ClusterDBName = "clusterd"
@@ -12,6 +15,8 @@ const (
 )
 
 const (
+	BaseURL     = "/mediaproc/v1"
+	URLRecord   = BaseURL + "/record"
 	URLRunner   = "/cd/v1/runner"
 	URLRunnerID = URLRunner + "/{" + ID + "}"
 	URLJob      = "/cd/v1/job"
@@ -33,4 +38,31 @@ type JobResult struct {
 	ExitCode int    `json:"exit_code"`
 	Stdout   string `json:"stdout"`
 	Stderr   string `json:"stderr"`
+}
+
+type LiveRecordRule struct {
+	*model.CreateLiveRecordRuleRequestParams
+	ID         int64     `json:"ID"`
+	CreateTime time.Time `json:"CreateTime"`
+}
+
+type LiveRecordTemplate struct {
+	*model.CreateLiveRecordTemplateRequestParams
+	ID         int64     `json:"ID"`
+	CreateTime time.Time `json:"CreateTime"`
+}
+
+type LiveRecordTask struct {
+	*model.CreateRecordTaskRequestParams
+	ID         int64     `json:"ID"`
+	CreateTime time.Time `json:"CreateTime"`
+}
+
+// Config is configuration of DB
+type Config struct {
+	Driver string // mysql vs sqlite
+	DBUser string // Username
+	DBPass string // Password (requires User)
+	Addr   string // Network address (requires Net)
+	DBName string // Database name
 }

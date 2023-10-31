@@ -1,0 +1,225 @@
+package record
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"github.com/leslie-wang/clusterd/common/model"
+	"github.com/leslie-wang/clusterd/types"
+)
+
+const (
+	insertRecordTemplate = "insert into record_templates (name, params, create_time) " +
+		" values(?, ?, CURRENT_TIMESTAMP)"
+	listRecordTemplates  = "select id, params, create_time from record_templates"
+	getRecordTemplate    = "select id, params, create_time from record_templates where id=?"
+	removeRecordTemplate = "delete from record_templates where id=?"
+
+	insertRecordRule = "insert into record_rules (template_id, domain_name, app_name, stream_name, create_time)" +
+		" values(?, ?, ?, ?, CURRENT_TIMESTAMP)"
+	listRecordRules  = "select template_id, domain_name, app_name, stream_name, create_time from record_rules"
+	removeRecordRule = "delete from record_rules where id=?"
+
+	insertRecordTask = "insert into record_tasks (template_id, domain_name, app_name, stream_name, " +
+		" stream_type, start_time, end_time, create_time) values(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)"
+	listRecordTasks = "select id, template_id, domain_name, app_name, stream_name, stream_type, " +
+		" start_time, end_time, create_time from record_tasks"
+	removeRecordTask = "delete from record_tasks where id=?"
+)
+
+var (
+	prepareRecordSQLs = []string{
+		insertRecordRule,
+		insertRecordTask,
+		insertRecordTemplate,
+		listRecordRules,
+		listRecordTasks,
+		listRecordTemplates,
+		removeRecordRule,
+		removeRecordTask,
+		removeRecordTemplate,
+		getRecordTemplate,
+	}
+	prepareRecordStatements map[string]*sql.Stmt
+)
+
+// DB is interface to record database
+type DB struct {
+	db *sql.DB
+}
+
+func NewDB(db *sql.DB) *DB {
+	rdb := &DB{db: db}
+	return rdb
+}
+
+// Prepare prepares all statement
+func (r *DB) Prepare() error {
+	prepareRecordStatements = make(map[string]*sql.Stmt)
+	for _, s := range prepareRecordSQLs {
+		stmt, err := r.db.Prepare(s)
+		if err != nil {
+			return err
+		}
+		prepareRecordStatements[s] = stmt
+	}
+	return nil
+}
+
+func (r *DB) InsertRecordTemplate(t *model.CreateLiveRecordTemplateRequestParams) (int64, error) {
+	s := prepareRecordStatements[insertRecordTemplate]
+	content, err := json.Marshal(t)
+	if err != nil {
+		return 0, err
+	}
+	res, err := s.Exec(t.TemplateName, string(content))
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func (r *DB) GetRecordTemplateByID(id int64) (*types.LiveRecordTemplate, error) {
+	s := prepareRecordStatements[getRecordTemplate]
+
+	var (
+		params string
+		t      types.LiveRecordTemplate
+		tmpl   model.CreateLiveRecordTemplateRequestParams
+	)
+	err := s.QueryRow(id).Scan(&t.ID, &params, &t.CreateTime)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	fmt.Println(params)
+	err = json.Unmarshal([]byte(params), &tmpl)
+	if err != nil {
+		return nil, err
+	}
+
+	t.CreateLiveRecordTemplateRequestParams = &tmpl
+	return &t, nil
+}
+
+func (r *DB) ListRecordTemplates(ctx context.Context) ([]types.LiveRecordTemplate, error) {
+	s := prepareRecordStatements[listRecordTemplates]
+
+	rows, err := s.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var tmpls []types.LiveRecordTemplate
+	for rows.Next() {
+		var (
+			params string
+			t      types.LiveRecordTemplate
+			tmpl   model.CreateLiveRecordTemplateRequestParams
+		)
+		err = rows.Scan(&t.ID, &params, &t.CreateTime)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal([]byte(params), &tmpl)
+		if err != nil {
+			return nil, err
+		}
+
+		t.CreateLiveRecordTemplateRequestParams = &tmpl
+		tmpls = append(tmpls, t)
+	}
+
+	return tmpls, nil
+}
+
+func (r *DB) RemoveRecordTemplate(id int64) error {
+	s := prepareRecordStatements[removeRecordTemplate]
+	_, err := s.Exec(id)
+	return err
+}
+
+func (r *DB) InsertRecordRule(ru *model.CreateLiveRecordRuleRequestParams) (int64, error) {
+	s := prepareRecordStatements[insertRecordRule]
+	res, err := s.Exec(ru.TemplateId, ru.DomainName, ru.AppName, ru.StreamName)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func (r *DB) ListRecordRules(ctx context.Context) ([]types.LiveRecordRule, error) {
+	s := prepareRecordStatements[listRecordRules]
+
+	rows, err := s.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var rules []types.LiveRecordRule
+	for rows.Next() {
+		var (
+			ru types.LiveRecordRule
+			mt model.CreateLiveRecordRuleRequestParams
+		)
+		err = rows.Scan(&ru.ID, &mt.TemplateId, &mt.DomainName, &mt.AppName, &mt.StreamName, &ru.CreateTime)
+		if err != nil {
+			return nil, err
+		}
+
+		ru.CreateLiveRecordRuleRequestParams = &mt
+		rules = append(rules, ru)
+	}
+
+	return rules, nil
+}
+
+func (r *DB) RemoveRecordRule(id int) error {
+	s := prepareRecordStatements[removeRecordRule]
+	_, err := s.Exec(id)
+	return err
+}
+
+func (r *DB) InsertRecordTask(t *model.CreateRecordTaskRequestParams) (int64, error) {
+	s := prepareRecordStatements[insertRecordTask]
+	res, err := s.Exec(t.TemplateId, t.DomainName, t.AppName, t.StreamName, t.StreamType, t.StartTime, t.EndTime)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func (r *DB) ListRecordTasks(ctx context.Context) ([]types.LiveRecordTask, error) {
+	s := prepareRecordStatements[listRecordTasks]
+
+	rows, err := s.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var tasks []types.LiveRecordTask
+	for rows.Next() {
+		var (
+			t  types.LiveRecordTask
+			mt model.CreateRecordTaskRequestParams
+		)
+		err = rows.Scan(&t.ID, &mt.TemplateId, &mt.DomainName, &mt.AppName, &mt.StreamName, &mt.StreamType,
+			&mt.StartTime, &mt.EndTime, &t.CreateTime)
+
+		if err != nil {
+			return nil, err
+		}
+
+		t.CreateRecordTaskRequestParams = &mt
+		tasks = append(tasks, t)
+	}
+
+	return tasks, nil
+}
+
+func (r *DB) RemoveRecordTash(id int) error {
+	s := prepareRecordStatements[removeRecordTask]
+	_, err := s.Exec(id)
+	return err
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/leslie-wang/clusterd/common/db"
 	"log"
 	"net"
 	"net/http"
@@ -53,9 +54,11 @@ func main() {
 func serve(ctx *cli.Context) error {
 	h, err := manager.NewHandler(
 		manager.Config{
+			Driver:    db.Sqlite,
 			DBAddress: ctx.String("dbhost"),
 			DBUser:    ctx.GlobalString("user"),
 			DBPass:    ctx.String("pass"),
+			DBName:    types.ClusterDBName + ".db",
 		})
 	if err != nil {
 		return err
