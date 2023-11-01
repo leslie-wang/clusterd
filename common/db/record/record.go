@@ -18,8 +18,8 @@ const (
 
 	insertRecordRule = "insert into record_rules (template_id, domain_name, app_name, stream_name, create_time)" +
 		" values(?, ?, ?, ?, CURRENT_TIMESTAMP)"
-	listRecordRules  = "select template_id, domain_name, app_name, stream_name, create_time from record_rules"
-	removeRecordRule = "delete from record_rules where id=?"
+	listRecordRules                   = "select template_id, domain_name, app_name, stream_name, create_time from record_rules"
+	removeRecordRuleByDomainAppStream = "delete from record_rules where domain_name=? and app_name=? and stream_name=?"
 
 	insertRecordTask = "insert into record_tasks (template_id, domain_name, app_name, stream_name, " +
 		" stream_type, start_time, end_time, create_time) values(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)"
@@ -36,7 +36,7 @@ var (
 		listRecordRules,
 		listRecordTasks,
 		listRecordTemplates,
-		removeRecordRule,
+		removeRecordRuleByDomainAppStream,
 		removeRecordTask,
 		removeRecordTemplate,
 		getRecordTemplate,
@@ -149,7 +149,7 @@ func (r *DB) InsertRecordRule(ru *model.CreateLiveRecordRuleRequestParams) (int6
 	return res.LastInsertId()
 }
 
-func (r *DB) ListRecordRules(ctx context.Context) ([]types.LiveRecordRule, error) {
+func (r *DB) ListRecordRules(ctx context.Context) ([]*model.RuleInfo, error) {
 	s := prepareRecordStatements[listRecordRules]
 
 	rows, err := s.QueryContext(ctx)
@@ -157,27 +157,23 @@ func (r *DB) ListRecordRules(ctx context.Context) ([]types.LiveRecordRule, error
 		return nil, err
 	}
 
-	var rules []types.LiveRecordRule
+	var rules []*model.RuleInfo
 	for rows.Next() {
-		var (
-			ru types.LiveRecordRule
-			mt model.CreateLiveRecordRuleRequestParams
-		)
-		err = rows.Scan(&ru.ID, &mt.TemplateId, &mt.DomainName, &mt.AppName, &mt.StreamName, &ru.CreateTime)
+		ru := &model.RuleInfo{}
+		err = rows.Scan(&ru.TemplateId, &ru.DomainName, &ru.AppName, &ru.StreamName, &ru.CreateTime)
 		if err != nil {
 			return nil, err
 		}
 
-		ru.CreateLiveRecordRuleRequestParams = &mt
 		rules = append(rules, ru)
 	}
 
 	return rules, nil
 }
 
-func (r *DB) RemoveRecordRule(id int) error {
-	s := prepareRecordStatements[removeRecordRule]
-	_, err := s.Exec(id)
+func (r *DB) RemoveRecordRuleByDomainAppStream(domain, app, stream string) error {
+	s := prepareRecordStatements[removeRecordRuleByDomainAppStream]
+	_, err := s.Exec(domain, app, stream)
 	return err
 }
 

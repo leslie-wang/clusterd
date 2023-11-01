@@ -1,5 +1,3 @@
-curl -s -X POST "http://localhost:8088/mediaproc/v1/record?Action=DeleteLiveRecordTemplate&TemplateId=$1" | python3 -m json.tool
-
 #!/bin/bash
 
 # Make a GET request using curl and store the response in a variable

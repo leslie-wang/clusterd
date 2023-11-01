@@ -80,8 +80,11 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 		resp, err = h.handleDeleteLiveRecordTemplate(q)
 
 	case ActionCreateLiveRecordRule:
+		resp, err = h.handleCreateLiveRecordRule(q)
 	case ActionDeleteLiveRecordRule:
+		resp, err = h.handleDeleteLiveRecordRule(q)
 	case ActionDescribeLiveRecordRules:
+		resp, err = h.handleListLiveRecordRules()
 
 	case ActionDescribeRecordTask:
 	case ActionCreateRecordTask:

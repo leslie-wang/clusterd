@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS record_templates (
 
 CREATE TABLE IF NOT EXISTS record_rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    template_id INT NOT NULL,
+    template_id INT,
     domain_name VARCHAR(1024) NOT NULL,
-    app_name VARCHAR(1024) NOT NULL,
-    stream_name VARCHAR(1024) NOT NULL,
+    app_name VARCHAR(1024),
+    stream_name VARCHAR(1024),
     create_time TIMESTAMP NOT NULL
 );
 
