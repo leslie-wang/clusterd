@@ -57,6 +57,19 @@ const (
 	FlvSpecialParamUploadInRecording    = "FlvSpecialParam.UploadInRecording"
 )
 
+const (
+	DomainName = "DomainName"
+	AppName    = "AppName"
+	StreamName = "StreamName"
+)
+
+const (
+	TaskID     = "TaskId"
+	EndTime    = "EndTime"
+	StartTime  = "StartTime"
+	StreamType = "StreamType"
+)
+
 /*
 func mkRequestIDByID(id int64) string {
 	return strconv.FormatInt(id, 10)
@@ -87,8 +100,11 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 		resp, err = h.handleListLiveRecordRules()
 
 	case ActionDescribeRecordTask:
+		resp, err = h.handleListRecordTasks()
 	case ActionCreateRecordTask:
+		resp, err = h.handleCreateRecordTask(q)
 	case ActionDeleteRecordTask:
+		resp, err = h.handleDeleteRecordTask(q)
 	case ActionStopRecordTask:
 	default:
 		err = util.ErrNotSupportedAPI

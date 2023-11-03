@@ -243,19 +243,19 @@ func (h *Handler) parseRecordParam(q url.Values, prefix string) (*model.RecordPa
 		rp.VodSubAppId = &data
 	}
 
-	val = q.Get(prefix + VodFileName)
-	if val != "" {
-		rp.VodFileName = &val
+	vodFileName := q.Get(prefix + VodFileName)
+	if vodFileName != "" {
+		rp.VodFileName = &vodFileName
 	}
 
-	val = q.Get(prefix + Procedure)
-	if val != "" {
-		rp.Procedure = &val
+	procedure := q.Get(prefix + Procedure)
+	if procedure != "" {
+		rp.Procedure = &procedure
 	}
 
-	val = q.Get(prefix + StorageMode)
-	if val != "" {
-		rp.StorageMode = &val
+	smode := q.Get(prefix + StorageMode)
+	if smode != "" {
+		rp.StorageMode = &smode
 	}
 
 	val = q.Get(prefix + ClassId)

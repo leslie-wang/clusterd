@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/leslie-wang/clusterd/common/model"
 	"github.com/leslie-wang/clusterd/types"
+	"strconv"
+	"time"
 )
 
 const (
@@ -23,8 +25,8 @@ const (
 
 	insertRecordTask = "insert into record_tasks (template_id, domain_name, app_name, stream_name, " +
 		" stream_type, start_time, end_time, create_time) values(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)"
-	listRecordTasks = "select id, template_id, domain_name, app_name, stream_name, stream_type, " +
-		" start_time, end_time, create_time from record_tasks"
+	listRecordTasks = "select id, template_id, domain_name, app_name, stream_name, " +
+		" start_time, end_time from record_tasks"
 	removeRecordTask = "delete from record_tasks where id=?"
 )
 
@@ -186,7 +188,7 @@ func (r *DB) InsertRecordTask(t *model.CreateRecordTaskRequestParams) (int64, er
 	return res.LastInsertId()
 }
 
-func (r *DB) ListRecordTasks(ctx context.Context) ([]types.LiveRecordTask, error) {
+func (r *DB) ListRecordTasks(ctx context.Context) ([]*model.RecordTask, error) {
 	s := prepareRecordStatements[listRecordTasks]
 
 	rows, err := s.QueryContext(ctx)
@@ -194,27 +196,39 @@ func (r *DB) ListRecordTasks(ctx context.Context) ([]types.LiveRecordTask, error
 		return nil, err
 	}
 
-	var tasks []types.LiveRecordTask
+	var tasks []*model.RecordTask
 	for rows.Next() {
+		t := &model.RecordTask{}
 		var (
-			t  types.LiveRecordTask
-			mt model.CreateRecordTaskRequestParams
+			id                 int64
+			startTime, endTime *time.Time
 		)
-		err = rows.Scan(&t.ID, &mt.TemplateId, &mt.DomainName, &mt.AppName, &mt.StreamName, &mt.StreamType,
-			&mt.StartTime, &mt.EndTime, &t.CreateTime)
+		err = rows.Scan(&id, &t.TemplateId, &t.DomainName, &t.AppName, &t.StreamName,
+			&startTime, &endTime)
+
+		if startTime != nil {
+			st := uint64(startTime.Unix())
+			t.StartTime = &st
+		}
+
+		if endTime != nil {
+			et := uint64(endTime.Unix())
+			t.EndTime = &et
+		}
+		idStr := strconv.FormatInt(id, 10)
+		t.TaskId = &idStr
 
 		if err != nil {
 			return nil, err
 		}
 
-		t.CreateRecordTaskRequestParams = &mt
 		tasks = append(tasks, t)
 	}
 
 	return tasks, nil
 }
 
-func (r *DB) RemoveRecordTash(id int) error {
+func (r *DB) RemoveRecordTask(id int64) error {
 	s := prepareRecordStatements[removeRecordTask]
 	_, err := s.Exec(id)
 	return err

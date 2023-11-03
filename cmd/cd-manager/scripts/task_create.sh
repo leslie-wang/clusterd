@@ -1,0 +1,2 @@
+# complete
+curl -s -X POST 'http://localhost:8088/mediaproc/v1/record?Action=CreateRecordTask&AppName=live&DomainName=5000.live.push.com&StreamName=livetest&StartTime=1589889600&EndTime=1589904000&TemplateId=0'

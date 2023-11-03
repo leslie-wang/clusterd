@@ -8,12 +8,6 @@ import (
 	"strconv"
 )
 
-const (
-	DomainName = "DomainName"
-	AppName    = "AppName"
-	StreamName = "StreamName"
-)
-
 func (h *Handler) handleListLiveRecordRules() (*model.DescribeLiveRecordRulesResponse, error) {
 	list, err := h.recordDB.ListRecordRules(context.Background())
 	if err != nil {
