@@ -134,7 +134,7 @@ func listJobs(ctx *cli.Context) error {
 		if j.LastSeenTime != nil && !j.LastSeenTime.IsZero() {
 			lt = j.LastSeenTime.Local().Format("2006-01-02 15:04:05")
 		}
-		line := fmt.Sprintf("%d\t%s\t%s\t%s\t%s\t%s\n", j.ID, ct, h, st, lt, j.Commands)
+		line := fmt.Sprintf("%d\t%s\t%s\t%s\t%s\t%s\n", j.ID, ct, h, st, lt, j.Metadata)
 		writer.Write([]byte(line))
 	}
 	return nil
@@ -145,8 +145,8 @@ func submitJob(ctx *cli.Context) error {
 		return errors.New("please provide commands")
 	}
 	j := types.Job{
-		RefID:    ctx.String("ref-id"),
-		Commands: ctx.Args(),
+		//RefID:    ctx.String("ref-id"),
+		//Commands: ctx.Args(),
 	}
 	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
 	err := mc.CreateJob(&j)

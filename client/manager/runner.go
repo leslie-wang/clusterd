@@ -1,18 +1,18 @@
 package manager
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
 )
 
-func (c *Client) RegisterRunner(name string) (*types.Job, error) {
-	url := c.makeURL(types.URLRunner, name)
-	fmt.Println(url)
+func (c *Client) AcquireJob(name string) (*types.Job, error) {
+	url := c.makeURL(types.URLJobRunnerIDBase, name)
 	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
 		return nil, err
@@ -40,6 +40,37 @@ func (c *Client) RegisterRunner(name string) (*types.Job, error) {
 
 	job := &types.Job{}
 	return job, json.Unmarshal(content, job)
+}
+
+func (c *Client) ReportJob(id, exitCode int) error {
+	url := c.makeURL(types.URLJobIDBase, strconv.Itoa(id))
+
+	report := types.JobResult{
+		ID:       id,
+		ExitCode: exitCode,
+	}
+	content, err := json.Marshal(report)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(content))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return util.MakeStatusError(resp.Body)
+	}
+
+	return nil
 }
 
 func (c *Client) ListRunners() (map[string]types.Job, error) {

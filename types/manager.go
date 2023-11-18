@@ -15,22 +15,38 @@ const (
 )
 
 const (
-	BaseURL     = "/mediaproc/v1"
-	URLRecord   = BaseURL + "/record"
-	URLRunner   = "/cd/v1/runner"
-	URLRunnerID = URLRunner + "/{" + ID + "}"
-	URLJob      = "/cd/v1/job"
-	URLJobID    = URLJob + "/{" + ID + "}"
+	BaseURL            = "/mediaproc/v1"
+	URLRecord          = BaseURL + "/record"
+	URLRunner          = "/cd/v1/runner"
+	URLRunnerID        = URLRunner + "/{" + ID + "}"
+	URLJob             = "/cd/v1/job"
+	URLJobIDBase       = URLJob + "/"
+	URLJobID           = URLJobIDBase + "{" + ID + "}"
+	URLJobRunnerIDBase = URLJob + "/runner/"
+	URLJobRunnerID     = URLJobRunnerIDBase + "{" + ID + "}"
+)
+
+type JobCategory uint
+
+const (
+	CategoryRecord JobCategory = iota
 )
 
 type Job struct {
-	ID           int        `json:"id"`
-	RefID        string     `json:"ref_id"`
-	Commands     []string   `json:"commands"`
-	RunningHost  *string    `json:"run_on,omitempty"`
-	CreateTime   time.Time  `json:"create_time"`
-	StartTime    *time.Time `json:"Start_time,omitempty"`
-	LastSeenTime *time.Time `json:"last_seen_time,omitempty"`
+	ID           int         `json:"id"`
+	RefID        int64       `json:"ref_id"`
+	Category     JobCategory `json:"category"`
+	Metadata     string      `json:"metadata"`
+	RunningHost  *string     `json:"run_on,omitempty"`
+	CreateTime   time.Time   `json:"create_time"`
+	StartTime    *time.Time  `json:"Start_time,omitempty"`
+	LastSeenTime *time.Time  `json:"last_seen_time,omitempty"`
+}
+
+type JobRecord struct {
+	SourceURL string
+	StartTime *uint64
+	EndTime   *uint64
 }
 
 type JobResult struct {

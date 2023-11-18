@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/leslie-wang/clusterd/handler/runner"
 	"github.com/leslie-wang/clusterd/types"
@@ -11,6 +13,15 @@ import (
 )
 
 func main() {
+	name, err := os.Hostname()
+	if err != nil {
+		log.Fatal(err)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	app := cli.NewApp()
 	app.Usage = "FFMPEG cluster runner"
 
@@ -26,6 +37,21 @@ func main() {
 			Usage: "manager listen port",
 			Value: types.ManagerPort,
 		},
+		cli.StringFlag{
+			Name:  "workdir, wd",
+			Usage: "local directory for recorded video",
+			Value: filepath.Join(wd, "runner"),
+		},
+		cli.StringFlag{
+			Name:  "name, n",
+			Usage: "current runner's name",
+			Value: name,
+		},
+		cli.DurationFlag{
+			Name:  "interval, i",
+			Usage: "interval to fetch next job",
+			Value: 10 * time.Second,
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -35,8 +61,11 @@ func main() {
 
 func serve(ctx *cli.Context) error {
 	handler := runner.NewHandler(runner.Config{
-		MgrHost: ctx.GlobalString("mgr-host"),
-		MgrPort: ctx.GlobalUint("mgr-port"),
+		MgrHost:  ctx.GlobalString("mgr-host"),
+		MgrPort:  ctx.GlobalUint("mgr-port"),
+		Interval: ctx.GlobalDuration("interval"),
+		Name:     ctx.GlobalString("name"),
+		Workdir:  ctx.GlobalString("workdir"),
 	})
 	return handler.Run(context.Background())
 }

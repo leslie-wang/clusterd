@@ -2,33 +2,14 @@ package manager
 
 import (
 	"encoding/json"
-	"net/http"
-	"time"
-
+	"github.com/gorilla/mux"
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
+	"net/http"
 )
 
-func (h *Handler) createJob(w http.ResponseWriter, r *http.Request) {
-	job := &types.Job{}
-	err := json.NewDecoder(r.Body).Decode(job)
-	if err != nil {
-		util.WriteError(w, err)
-		return
-	}
-
-	job.CreateTime = time.Now()
-	err = h.insertJobDB(job)
-	if err != nil {
-		util.WriteError(w, err)
-		return
-	}
-
-	util.WriteBody(w, job)
-}
-
 func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
-	jobs, err := h.listJobsDB()
+	jobs, err := h.jobDB.List()
 	if err != nil {
 		util.WriteError(w, err)
 		return
@@ -45,7 +26,7 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.archiveJobTx(job.ID, job.ExitCode)
+	err = h.jobDB.CompleteAndArchive(job.ID, job.ExitCode)
 	if err != nil {
 		util.WriteError(w, err)
 		return
@@ -54,4 +35,18 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 	// TODO: save stdout and stderr
 	util.WriteBody(w, job)
 	return
+}
+
+func (h *Handler) acquireJob(w http.ResponseWriter, r *http.Request) {
+	runner := mux.Vars(r)[types.ID]
+
+	job, err := h.jobDB.Acquire(runner)
+	if err != nil {
+		util.WriteError(w, err)
+		return
+	}
+
+	if job != nil {
+		util.WriteBody(w, job)
+	}
 }

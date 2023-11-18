@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/leslie-wang/clusterd/common/db"
+	"github.com/leslie-wang/clusterd/common/db/job"
 	"github.com/leslie-wang/clusterd/common/db/record"
 	"log"
 	"net/http"
@@ -37,6 +38,7 @@ type Handler struct {
 
 	db       *sql.DB
 	recordDB *record.DB
+	jobDB    *job.DB
 
 	runners map[string]time.Time // <runner_name, last checkin time>
 }
@@ -48,7 +50,6 @@ func NewHandler(c Config) (*Handler, error) {
 		lock:    &sync.Mutex{},
 		runners: map[string]time.Time{},
 	}
-	h.init()
 	return h, h.init()
 }
 
@@ -64,13 +65,13 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func (h *Handler) CreateRouter() *mux.Router {
 	if h.r == nil {
 		h.r = mux.NewRouter()
+
+		// recording
 		h.r.HandleFunc(types.URLRecord, h.record).Methods(http.MethodPost)
-		h.r.HandleFunc(types.BaseURL, h.register).Methods(http.MethodPost)
-		h.r.HandleFunc(types.URLRunner, h.listRunners).Methods(http.MethodGet)
 
-		h.r.HandleFunc(types.URLJob, h.createJob).Methods(http.MethodPost)
+		// job related
 		h.r.HandleFunc(types.URLJob, h.listJobs).Methods(http.MethodGet)
-
+		h.r.HandleFunc(types.URLJobRunnerID, h.acquireJob).Methods(http.MethodPost)
 		h.r.HandleFunc(types.URLJobID, h.reportJob).Methods(http.MethodPost)
 
 		h.r.Use(loggingMiddleware)
@@ -91,13 +92,18 @@ func (h *Handler) init() (err error) {
 	if err != nil {
 		return
 	}
-	err = h.prepareJobDB()
+	h.jobDB = job.NewDB(h.db)
+	err = h.jobDB.Prepare()
 	if err != nil {
 		return
 	}
 
 	h.recordDB = record.NewDB(h.db)
 	return h.recordDB.Prepare()
+}
+
+func (h *Handler) newTx() (*sql.Tx, error) {
+	return h.db.Begin()
 }
 
 func (h *Handler) testDB() {

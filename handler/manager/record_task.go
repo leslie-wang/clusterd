@@ -2,8 +2,11 @@ package manager
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"github.com/leslie-wang/clusterd/common/model"
+	"github.com/leslie-wang/clusterd/types"
 	"net/url"
 	"strconv"
 )
@@ -45,7 +48,38 @@ func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskR
 		return nil, err
 	}
 
-	id, err := h.recordDB.InsertRecordTask(r)
+	tx, err := h.newTx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	id, err := h.recordDB.InsertRecordTask(tx, r)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.DomainName == nil {
+		return nil, errors.New("DomainName can not be empty")
+	}
+	sourceURL, err := base64.StdEncoding.DecodeString(*r.DomainName)
+	if err != nil {
+		return nil, err
+	}
+	job := &types.JobRecord{
+		SourceURL: string(sourceURL),
+		StartTime: r.StartTime,
+		EndTime:   r.EndTime,
+	}
+	content, err := json.Marshal(job)
+	if err != nil {
+		return nil, err
+	}
+	err = h.jobDB.Insert(tx, &types.Job{
+		RefID:    id,
+		Category: types.CategoryRecord,
+		Metadata: string(content),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +87,7 @@ func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskR
 	tid := strconv.FormatInt(id, 10)
 	return &model.CreateRecordTaskResponse{Response: &model.CreateRecordTaskResponseParams{
 		TaskId: &tid,
-	}}, nil
+	}}, tx.Commit()
 }
 
 func (h *Handler) parseRecordTask(q url.Values) (*model.CreateRecordTaskRequestParams, error) {
