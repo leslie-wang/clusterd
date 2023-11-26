@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,6 +40,11 @@ func main() {
 			Usage: "manager listen port",
 			Value: types.ManagerPort,
 		},
+		cli.UintFlag{
+			Name:  "port, rp",
+			Usage: "runner listen port",
+			Value: types.RunnerPort,
+		},
 		cli.StringFlag{
 			Name:  "workdir, wd",
 			Usage: "local directory for recorded video",
@@ -67,5 +75,23 @@ func serve(ctx *cli.Context) error {
 		Name:     ctx.GlobalString("name"),
 		Workdir:  ctx.GlobalString("workdir"),
 	})
+
+	go func() {
+		host := fmt.Sprintf(":%d", ctx.Uint("port"))
+		l, err := net.Listen("tcp", host)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		s := &http.Server{
+			Addr:    host,
+			Handler: handler.CreateRouter(),
+		}
+		err = s.Serve(l)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Stop http listener")
+	}()
 	return handler.Run(context.Background())
 }

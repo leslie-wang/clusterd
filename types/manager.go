@@ -2,12 +2,14 @@ package types
 
 import (
 	"github.com/leslie-wang/clusterd/common/model"
+	"strings"
 	"time"
 )
 
 const (
 	ClusterDBName = "clusterd"
 	ManagerPort   = 8088
+	RunnerPort    = 8089
 )
 
 const (
@@ -15,16 +17,22 @@ const (
 )
 
 const (
-	BaseURL            = "/mediaproc/v1"
-	URLRecord          = BaseURL + "/record"
-	URLRunner          = "/cd/v1/runner"
-	URLRunnerID        = URLRunner + "/{" + ID + "}"
-	URLJob             = "/cd/v1/job"
-	URLJobIDBase       = URLJob + "/"
-	URLJobID           = URLJobIDBase + "{" + ID + "}"
-	URLJobRunnerIDBase = URLJob + "/runner/"
-	URLJobRunnerID     = URLJobRunnerIDBase + "{" + ID + "}"
+	BaseURL         = "/mediaproc/v1"
+	URLRecord       = BaseURL + "/record"
+	URLRunner       = "/cd/v1/runner"
+	URLRunnerLogJob = URLRunner + "/log/job/"
+
+	URLJob       = "/cd/v1/job"
+	URLJobRunner = URLJob + "/runner/"
+	URLJobLog    = URLJob + "/log/"
 )
+
+func MkIDURLByBase(base string) string {
+	if !strings.HasSuffix(base, "/") {
+		base += "/"
+	}
+	return base + "{" + ID + "}"
+}
 
 type JobCategory uint
 
@@ -39,6 +47,7 @@ type Job struct {
 	Metadata     string      `json:"metadata"`
 	RunningHost  *string     `json:"run_on,omitempty"`
 	CreateTime   time.Time   `json:"create_time"`
+	ScheduleTime time.Time   `json:"schedule_time"`
 	StartTime    *time.Time  `json:"Start_time,omitempty"`
 	LastSeenTime *time.Time  `json:"last_seen_time,omitempty"`
 }

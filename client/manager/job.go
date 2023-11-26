@@ -3,7 +3,9 @@ package manager
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
@@ -54,4 +56,22 @@ func (c *Client) ListJobs() ([]types.Job, error) {
 
 	jobs := []types.Job{}
 	return jobs, json.NewDecoder(resp.Body).Decode(&jobs)
+}
+
+func (c *Client) DownloadLogFromManager(jobID int) (io.ReadCloser, error) {
+	url := c.makeURL(types.MkIDURLByBase(types.URLJobLog), strconv.Itoa(jobID))
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, util.MakeStatusError(resp.Body)
+	}
+	return resp.Body, nil
 }

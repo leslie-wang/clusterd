@@ -6,6 +6,7 @@ import (
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
 	"net/http"
+	"time"
 )
 
 func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +41,7 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) acquireJob(w http.ResponseWriter, r *http.Request) {
 	runner := mux.Vars(r)[types.ID]
 
-	job, err := h.jobDB.Acquire(runner)
+	job, err := h.jobDB.Acquire(runner, time.Now().Add(h.cfg.ScheduleInterval))
 	if err != nil {
 		util.WriteError(w, err)
 		return

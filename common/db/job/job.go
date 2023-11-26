@@ -5,14 +5,15 @@ import (
 	"database/sql"
 	"github.com/leslie-wang/clusterd/types"
 	"github.com/pkg/errors"
+	"time"
 )
 
 const (
-	insertJob  = "insert into jobs (ref_id, category, metadata, create_time) values(?, ?, ?, CURRENT_TIMESTAMP)"
+	insertJob  = "insert into jobs (ref_id, category, metadata, create_time, schedule_time) values(?, ?, ?, CURRENT_TIMESTAMP, ?)"
 	archiveJob = `insert into job_archives (id, ref_id, category, metadata, runner, exit_code, create_time, start_time, end_time) 
 					select id, ref_id, category, metadata, runner, ?, create_time, start_time, CURRENT_TIMESTAMP from jobs where id=?`
-	listJobs            = "select id, ref_id, category, metadata, runner, create_time, start_time, last_seen_time from jobs"
-	getNotStartedJob    = "select id, category, metadata from jobs where start_time is null order by create_time limit 1"
+	listJobs            = "select id, ref_id, category, metadata, runner, create_time, schedule_time, start_time, last_seen_time from jobs"
+	getNotStartedJob    = "select id, category, metadata, schedule_time from jobs where start_time is null and schedule_time < ? order by create_time limit 1"
 	getNotFinishJobByID = "select id, ref_id, category, metadata, runner, create_time, start_time, last_seen_time from jobs where id=?"
 	updateJobForRunner  = "update jobs set runner=?, start_time=CURRENT_TIMESTAMP, last_seen_time=CURRENT_TIMESTAMP where id=?"
 	removeJob           = "delete from jobs where id=?"
@@ -57,7 +58,7 @@ func (j *DB) Prepare() error {
 }
 
 func (j *DB) Insert(tx *sql.Tx, job *types.Job) error {
-	res, err := tx.Exec(insertJob, job.RefID, job.Category, job.Metadata)
+	res, err := tx.Exec(insertJob, job.RefID, job.Category, job.Metadata, job.ScheduleTime)
 	if err != nil {
 		return err
 	}
@@ -81,7 +82,7 @@ func (j *DB) List() ([]types.Job, error) {
 	for rows.Next() {
 		job := types.Job{}
 		err = rows.Scan(&job.ID, &job.RefID, &job.Category, &job.Metadata, &job.RunningHost,
-			&job.CreateTime, &job.StartTime, &job.LastSeenTime)
+			&job.CreateTime, &job.ScheduleTime, &job.StartTime, &job.LastSeenTime)
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +130,7 @@ func (j *DB) ListActiveRunners() (map[string]types.Job, error) {
 	return runners, nil
 }
 
-func (j *DB) Acquire(runner string) (*types.Job, error) {
+func (j *DB) Acquire(runner string, scheduleTime time.Time) (*types.Job, error) {
 	tx, err := j.db.Begin()
 	if err != nil {
 		return nil, err
@@ -144,7 +145,7 @@ func (j *DB) Acquire(runner string) (*types.Job, error) {
 
 	job := &types.Job{}
 
-	err = getStmt.QueryRowContext(context.Background()).Scan(&job.ID, &job.Category, &job.Metadata)
+	err = getStmt.QueryRowContext(context.Background(), scheduleTime).Scan(&job.ID, &job.Category, &job.Metadata, &job.ScheduleTime)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

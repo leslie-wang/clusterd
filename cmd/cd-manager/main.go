@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/leslie-wang/clusterd/handler/manager"
 	"github.com/leslie-wang/clusterd/types"
@@ -44,6 +45,11 @@ func main() {
 			Usage: "mysql dsn to use",
 			Value: "dd",
 		},
+		cli.DurationFlag{
+			Name:  "schedule-interval, i",
+			Usage: "interval for runner to get job",
+			Value: 10 * time.Second,
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -54,11 +60,12 @@ func main() {
 func serve(ctx *cli.Context) error {
 	h, err := manager.NewHandler(
 		manager.Config{
-			Driver:    db.Sqlite,
-			DBAddress: ctx.String("dbhost"),
-			DBUser:    ctx.GlobalString("user"),
-			DBPass:    ctx.String("pass"),
-			DBName:    types.ClusterDBName + ".db",
+			Driver:           db.Sqlite,
+			DBAddress:        ctx.String("dbhost"),
+			DBUser:           ctx.GlobalString("user"),
+			DBPass:           ctx.String("pass"),
+			DBName:           types.ClusterDBName + ".db",
+			ScheduleInterval: ctx.Duration("schedule-interval"),
 		})
 	if err != nil {
 		return err

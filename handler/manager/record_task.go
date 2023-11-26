@@ -9,6 +9,7 @@ import (
 	"github.com/leslie-wang/clusterd/types"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 func (h *Handler) handleListRecordTasks() (*model.DescribeRecordTaskResponse, error) {
@@ -66,20 +67,27 @@ func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskR
 	if err != nil {
 		return nil, err
 	}
-	job := &types.JobRecord{
+	record := &types.JobRecord{
 		SourceURL: string(sourceURL),
 		StartTime: r.StartTime,
 		EndTime:   r.EndTime,
 	}
-	content, err := json.Marshal(job)
+	content, err := json.Marshal(record)
 	if err != nil {
 		return nil, err
 	}
-	err = h.jobDB.Insert(tx, &types.Job{
+
+	job := &types.Job{
 		RefID:    id,
 		Category: types.CategoryRecord,
 		Metadata: string(content),
-	})
+	}
+	if r.StartTime == nil {
+		job.ScheduleTime = time.Now()
+	} else {
+		job.ScheduleTime = time.Unix(int64(*r.StartTime), 0).UTC()
+	}
+	err = h.jobDB.Insert(tx, job)
 	if err != nil {
 		return nil, err
 	}

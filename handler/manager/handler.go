@@ -23,11 +23,12 @@ import (
 
 // Config is configuration for the handler
 type Config struct {
-	Driver    string
-	DBAddress string
-	DBUser    string
-	DBPass    string
-	DBName    string
+	Driver           string
+	DBAddress        string
+	DBUser           string
+	DBPass           string
+	DBName           string
+	ScheduleInterval time.Duration
 }
 
 // Handler is structure for recorder API
@@ -71,8 +72,8 @@ func (h *Handler) CreateRouter() *mux.Router {
 
 		// job related
 		h.r.HandleFunc(types.URLJob, h.listJobs).Methods(http.MethodGet)
-		h.r.HandleFunc(types.URLJobRunnerID, h.acquireJob).Methods(http.MethodPost)
-		h.r.HandleFunc(types.URLJobID, h.reportJob).Methods(http.MethodPost)
+		h.r.HandleFunc(types.MkIDURLByBase(types.URLJobRunner), h.acquireJob).Methods(http.MethodPost)
+		h.r.HandleFunc(types.MkIDURLByBase(types.URLJob), h.reportJob).Methods(http.MethodPost)
 
 		h.r.Use(loggingMiddleware)
 	}

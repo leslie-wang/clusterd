@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -35,7 +33,7 @@ func main() {
 		cli.UintFlag{
 			Name:  "runner-port, rp",
 			Usage: "runner listen port",
-			Value: 8089,
+			Value: types.RunnerPort,
 		},
 	}
 	app.Commands = []cli.Command{
@@ -59,7 +57,8 @@ func main() {
 					Aliases: []string{"l"},
 					Usage:   "list all in queue jobs",
 					Action:  listJobs,
-				}, {
+				},
+				{
 					Name:      "submit",
 					Aliases:   []string{"s"},
 					Usage:     "submit a new job",
@@ -71,6 +70,12 @@ func main() {
 							Usage: "reference ID in caller system",
 						},
 					},
+				},
+				{
+					Name:      "log",
+					Usage:     "get one job's log",
+					ArgsUsage: "[job ID]",
+					Action:    getJobLog,
 				},
 			},
 		},
@@ -106,55 +111,4 @@ func listRunners(ctx *cli.Context) error {
 		writer.Write([]byte(line))
 	}
 	return nil
-}
-
-func listJobs(ctx *cli.Context) error {
-	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
-	jobs, err := mc.ListJobs()
-	if err != nil {
-		return err
-	}
-
-	writer := tabwriter.NewWriter(os.Stdout, 5, 1, 1, ' ', 0)
-	defer writer.Flush()
-
-	writer.Write([]byte("JobID\tCreate Time\tRunning Host\tStart Time\tLast Seen Time\tCommand\n"))
-
-	for _, j := range jobs {
-		var h, ct, st, lt string
-		if j.RunningHost != nil {
-			h = *j.RunningHost
-		}
-		if !j.CreateTime.IsZero() {
-			ct = j.CreateTime.Local().Format("2006-01-02 15:04:05")
-		}
-		if j.StartTime != nil && !j.StartTime.IsZero() {
-			st = j.StartTime.Local().Format("2006-01-02 15:04:05")
-		}
-		if j.LastSeenTime != nil && !j.LastSeenTime.IsZero() {
-			lt = j.LastSeenTime.Local().Format("2006-01-02 15:04:05")
-		}
-		line := fmt.Sprintf("%d\t%s\t%s\t%s\t%s\t%s\n", j.ID, ct, h, st, lt, j.Metadata)
-		writer.Write([]byte(line))
-	}
-	return nil
-}
-
-func submitJob(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 {
-		return errors.New("please provide commands")
-	}
-	j := types.Job{
-		//RefID:    ctx.String("ref-id"),
-		//Commands: ctx.Args(),
-	}
-	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
-	err := mc.CreateJob(&j)
-	if err != nil {
-		return err
-	}
-
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(j)
 }
