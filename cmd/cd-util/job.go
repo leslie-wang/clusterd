@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/leslie-wang/clusterd/client/manager"
-	"github.com/leslie-wang/clusterd/types"
-	"github.com/urfave/cli"
 	"io"
 	"os"
 	"strconv"
 	"text/tabwriter"
+
+	"github.com/leslie-wang/clusterd/client/manager"
+	"github.com/leslie-wang/clusterd/types"
+	"github.com/urfave/cli"
 )
 
 func listJobs(ctx *cli.Context) error {

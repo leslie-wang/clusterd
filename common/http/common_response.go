@@ -1,6 +1,6 @@
 package common
 
-import "github.com/leslie-wang/clusterd/common/json"
+import "encoding/json"
 
 type actionResult map[string]interface{}
 type CommonResponse struct {

@@ -3,9 +3,10 @@ package manager
 import (
 	"context"
 	"errors"
-	"github.com/leslie-wang/clusterd/common/model"
 	"net/url"
 	"strconv"
+
+	"github.com/leslie-wang/clusterd/common/model"
 )
 
 func (h *Handler) handleListLiveRecordRules() (*model.DescribeLiveRecordRulesResponse, error) {

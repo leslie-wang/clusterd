@@ -1,9 +1,10 @@
 package common
 
 import (
-	tcerr "github.com/leslie-wang/clusterd/common/errors"
-	"github.com/leslie-wang/clusterd/common/json"
+	"encoding/json"
 	"testing"
+
+	tcerr "github.com/leslie-wang/clusterd/common/errors"
 )
 
 func TestCommonRequest_SetActionParameters(t *testing.T) {

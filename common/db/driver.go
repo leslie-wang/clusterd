@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/leslie-wang/clusterd/common/db/mysql"
 	"github.com/leslie-wang/clusterd/common/db/sqlite"
 	"github.com/leslie-wang/clusterd/types"

@@ -3,9 +3,10 @@ package job
 import (
 	"context"
 	"database/sql"
+	"time"
+
 	"github.com/leslie-wang/clusterd/types"
 	"github.com/pkg/errors"
-	"time"
 )
 
 const (

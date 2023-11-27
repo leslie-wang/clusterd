@@ -1,9 +1,10 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
+
 	tcerr "github.com/leslie-wang/clusterd/common/errors"
-	"github.com/leslie-wang/clusterd/common/json"
 )
 
 const (
@@ -33,19 +34,19 @@ func (cr *CommonRequest) SetActionParameters(data interface{}) error {
 	if data == nil {
 		return nil
 	}
-	switch data.(type) {
+	switch dt := data.(type) {
 	case []byte:
-		if err := json.Unmarshal(data.([]byte), &cr.actionParameters); err != nil {
+		if err := json.Unmarshal(dt, &cr.actionParameters); err != nil {
 			msg := fmt.Sprintf("Fail to parse contents %s to json,because: %s", data.([]byte), err)
 			return tcerr.NewTencentCloudSDKError("ClientError.ParseJsonError", msg, "")
 		}
 	case string:
-		if err := json.Unmarshal([]byte(data.(string)), &cr.actionParameters); err != nil {
+		if err := json.Unmarshal([]byte(dt), &cr.actionParameters); err != nil {
 			msg := fmt.Sprintf("Fail to parse contents %s to json,because: %s", data.(string), err)
 			return tcerr.NewTencentCloudSDKError("ClientError.ParseJsonError", msg, "")
 		}
 	case map[string]interface{}:
-		cr.actionParameters = data.(map[string]interface{})
+		cr.actionParameters = dt
 	default:
 		msg := fmt.Sprintf("Invalid data type:%T, must be one of the following: []byte, string, map[string]interface{}", data)
 		return tcerr.NewTencentCloudSDKError("ClientError.InvalidParameter", msg, "")
@@ -63,10 +64,7 @@ func (cr *CommonRequest) IsOctetStream() bool {
 		return false
 	}
 	_, ok = value.([]byte)
-	if !ok {
-		return false
-	}
-	return true
+	return ok
 }
 
 func (cr *CommonRequest) SetHeader(header map[string]string) {

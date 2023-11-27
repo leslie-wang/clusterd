@@ -5,11 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/leslie-wang/clusterd/common/model"
-	"github.com/leslie-wang/clusterd/types"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/leslie-wang/clusterd/common/model"
+	"github.com/leslie-wang/clusterd/types"
 )
 
 func (h *Handler) handleListRecordTasks() (*model.DescribeRecordTaskResponse, error) {

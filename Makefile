@@ -6,6 +6,9 @@ SHELL=/bin/bash # Use bash syntax
 vendor:
 	go mod vendor
 
+lint:
+	golangci-lint run --modules-download-mode vendor -v --max-same-issues 10
+
 dev-image:
 	docker build --tag "leslie-wang/clusterd:1.0" -f dockerfiles/dev-image .
 

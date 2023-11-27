@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"io"
+
 	//"log"
 	"math/rand"
 	"net/url"
@@ -71,6 +72,9 @@ type BaseRequest struct {
 
 	contentType string
 	body        []byte
+
+	// dummy for marshal
+	Dummy interface{} `json:",omitempty"`
 }
 
 func (r *BaseRequest) GetAction() string {

@@ -2,11 +2,12 @@ package manager
 
 import (
 	"encoding/json"
+	"net/http"
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
-	"net/http"
-	"time"
 )
 
 func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +36,6 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: save stdout and stderr
 	util.WriteBody(w, job)
-	return
 }
 
 func (h *Handler) acquireJob(w http.ResponseWriter, r *http.Request) {

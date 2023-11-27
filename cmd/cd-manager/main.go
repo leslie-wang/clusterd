@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/leslie-wang/clusterd/common/db"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/leslie-wang/clusterd/common/db"
 
 	"github.com/leslie-wang/clusterd/handler/manager"
 	"github.com/leslie-wang/clusterd/types"

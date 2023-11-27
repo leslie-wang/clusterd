@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/leslie-wang/clusterd/common/model"
-	"github.com/leslie-wang/clusterd/types"
 	"strconv"
 	"time"
+
+	"github.com/leslie-wang/clusterd/common/model"
+	"github.com/leslie-wang/clusterd/types"
 )
 
 const (

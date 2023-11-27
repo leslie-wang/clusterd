@@ -1,8 +1,9 @@
 package manager
 
 import (
-	"github.com/leslie-wang/clusterd/common/util"
 	"net/http"
+
+	"github.com/leslie-wang/clusterd/common/util"
 )
 
 const (

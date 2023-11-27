@@ -2,8 +2,9 @@ package sqlite
 
 import (
 	"database/sql"
-	"github.com/leslie-wang/clusterd/types"
 	"time"
+
+	"github.com/leslie-wang/clusterd/types"
 
 	_ "github.com/mattn/go-sqlite3"
 )

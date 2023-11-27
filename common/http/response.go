@@ -10,8 +10,9 @@ import (
 
 	"net/http"
 
+	"encoding/json"
+
 	"github.com/leslie-wang/clusterd/common/errors"
-	"github.com/leslie-wang/clusterd/common/json"
 )
 
 type Response interface {

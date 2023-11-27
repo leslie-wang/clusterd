@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/leslie-wang/clusterd/common/util"
 	"io"
 	"log"
 	"net/http"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/leslie-wang/clusterd/common/util"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
@@ -153,7 +154,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 	mediaFile := filepath.Join(dir, recordFilename)
 	args := []string{"-re", "-i", r.SourceURL, "-c", "copy",
 		"-hls_playlist_type", "vod", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", mediaFile}
-	cmd := exec.Command("ffmpeg", args...)
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	cmd.Dir = dir
 
 	logFile, err := os.Create(filepath.Join(dir, logFilename))

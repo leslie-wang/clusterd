@@ -3,9 +3,10 @@ package manager
 import (
 	"context"
 	"errors"
-	"github.com/leslie-wang/clusterd/common/model"
 	"net/url"
 	"strconv"
+
+	"github.com/leslie-wang/clusterd/common/model"
 )
 
 func (h *Handler) handleGetLiveRecordTemplate(q url.Values) (*model.DescribeLiveRecordTemplateResponse, error) {
@@ -85,7 +86,6 @@ func (h *Handler) handleListLiveRecordTemplates() (*model.DescribeLiveRecordTemp
 			RemoveWatermark: item.RemoveWatermark,
 			FlvSpecialParam: item.FlvSpecialParam,
 		})
-
 	}
 	return resp, nil
 }

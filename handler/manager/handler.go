@@ -1,21 +1,18 @@
 package manager
 
 import (
-	"context"
 	"database/sql"
-	"fmt"
-	"github.com/leslie-wang/clusterd/common/db"
-	"github.com/leslie-wang/clusterd/common/db/job"
-	"github.com/leslie-wang/clusterd/common/db/record"
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
+	"github.com/leslie-wang/clusterd/common/db"
+	"github.com/leslie-wang/clusterd/common/db/job"
+	"github.com/leslie-wang/clusterd/common/db/record"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/leslie-wang/clusterd/types"
@@ -105,69 +102,6 @@ func (h *Handler) init() (err error) {
 
 func (h *Handler) newTx() (*sql.Tx, error) {
 	return h.db.Begin()
-}
-
-func (h *Handler) testDB() {
-	cfg := mysql.NewConfig()
-	cfg.User = h.cfg.DBUser
-	cfg.Passwd = h.cfg.DBPass
-	cfg.Addr = h.cfg.DBAddress
-	cfg.DBName = types.ClusterDBName
-	cfg.ParseTime = true
-	fmt.Println(cfg.FormatDSN())
-	db, err := sql.Open("mysql", cfg.FormatDSN())
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	// See "Important settings" section.
-	db.SetConnMaxLifetime(3 * time.Minute)
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(10)
-
-	// Prepare statement for inserting data
-	stmtIns, err := db.Prepare("INSERT INTO assets (ref_id, url, start_time) VALUES( 1, ?,? )") // ? = placeholder
-	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
-	}
-	defer stmtIns.Close() // Close the statement when we leave main() / the program terminates
-
-	// Prepare statement for reading data
-	stmtOut, err := db.Prepare("SELECT id, url, start_time FROM assets")
-	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
-	}
-	defer stmtOut.Close()
-
-	// Insert square numbers for 0-24 in the database
-	t := time.Now()
-	for i := 0; i < 25; i++ {
-		_, err = stmtIns.Exec("http://"+strconv.Itoa(i), t) // Insert tuples (i, i^2)
-		if err != nil {
-			panic(err.Error()) // proper error handling instead of panic in your app
-		}
-		t = t.Add(time.Hour)
-	}
-
-	var (
-		id  int // we "scan" the result in here
-		url string
-	)
-
-	// Query the square-number of 13
-	rows, err := stmtOut.QueryContext(context.Background())
-	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
-	}
-	for rows.Next() {
-		err = rows.Scan(&id, &url, &t) // WHERE number = 13
-		if err != nil {
-			panic(err.Error()) // proper error handling instead of panic in your app
-		}
-		fmt.Printf("%d: %s, %v\n", id, url, t)
-	}
-	fmt.Println("done")
 }
 
 func hasPrefixInQueryKeys(q url.Values, prefix string) bool {

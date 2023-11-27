@@ -1,9 +1,10 @@
 package types
 
 import (
-	"github.com/leslie-wang/clusterd/common/model"
 	"strings"
 	"time"
+
+	"github.com/leslie-wang/clusterd/common/model"
 )
 
 const (
