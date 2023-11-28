@@ -11,7 +11,7 @@ import (
 
 // OpenDB open sqlite db
 func OpenDB(cfg types.Config) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", cfg.DBName)
+	db, err := sql.Open("sqlite3", cfg.Addr)
 	if err != nil {
 		return nil, err
 	}
