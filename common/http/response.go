@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"strconv"
 
@@ -112,7 +112,7 @@ func TryReadErr(resp *http.Response) (err error) {
 		return nil
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		msg := fmt.Sprintf("Fail to read http body, because: %s", err)
 		return errors.NewTencentCloudSDKError("ClientError.ParseJsonError", msg, "")
@@ -138,7 +138,7 @@ func TryReadErr(resp *http.Response) (err error) {
 	if depResp.Code != 0 {
 		return errors.NewTencentCloudSDKError(depResp.CodeDesc, depResp.Message, "")
 	}
-	resp.Body = ioutil.NopCloser(bytes.NewReader(body))
+	resp.Body = io.NopCloser(bytes.NewReader(body))
 	return nil
 }
 
@@ -153,7 +153,7 @@ func ParseFromHttpResponse(hr *http.Response, resp Response) error {
 
 func parseFromJson(hr *http.Response, resp Response) error {
 	defer hr.Body.Close()
-	body, err := ioutil.ReadAll(hr.Body)
+	body, err := io.ReadAll(hr.Body)
 	if err != nil {
 		msg := fmt.Sprintf("Fail to read response body because %s", err)
 		return errors.NewTencentCloudSDKError("ClientError.IOError", msg, "")

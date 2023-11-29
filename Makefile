@@ -1,7 +1,8 @@
 .PHONY: vendor
 
 SHELL=/bin/bash # Use bash syntax
-
+VERSION_COMPILE := -ldflags "-X github.com/leslie-wang/common/release.Version=$$(cat LATEST_RELEASE)"
+GO_INSTALL = go install -v $(VERSION_COMPILE
 
 vendor:
 	go mod vendor
@@ -10,10 +11,10 @@ lint:
 	golangci-lint run --modules-download-mode vendor -v --max-same-issues 10
 
 dev-image:
-	docker build --tag "leslie-wang/clusterd:1.0" -f dockerfiles/dev-image .
+	docker build --tag "qiwang/clusterd:1.0" -f dockerfiles/dev-image .
 
 dev:
-	docker build --tag "leslie-wang/clusterd" -f dockerfiles/dev-run .
+	docker build --tag "qiwang/clusterd" -f dockerfiles/dev-run .
 	docker rm -f clusterd
 	docker run \
 		--name clusterd --hostname clusterd \
@@ -21,3 +22,12 @@ dev:
 		-v "${PWD}:/go/src/github.com/leslie-wang/clusterd" \
 		--net host --dns-search local \
 		-it "leslie-wang/clusterd" -d bash
+
+release:
+	echo "release-$$(date +%m-%d-%y.%H.%M.%S)-$$(git rev-parse --short=8 HEAD)" >LATEST_RELEASE
+
+install:
+	go install -v ./cmd/...
+
+integration-test-sqlite: install
+	go test  -v ./tests/integration-sqlite/

@@ -84,8 +84,8 @@ func (h *Handler) init() (err error) {
 		Driver: h.cfg.Driver,
 		DBUser: h.cfg.DBUser,
 		DBPass: h.cfg.DBPass,
-		Addr:   h.cfg.DBAddress,
 		DBName: h.cfg.DBName,
+		Addr:   h.cfg.DBAddress,
 	})
 	if err != nil {
 		return

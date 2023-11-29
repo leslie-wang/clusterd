@@ -1,15 +1,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/leslie-wang/clusterd/common/db"
-
 	"github.com/leslie-wang/clusterd/handler/manager"
 	"github.com/leslie-wang/clusterd/types"
 	"github.com/urfave/cli"
@@ -27,19 +28,24 @@ func main() {
 			Value: types.ManagerPort,
 		},
 		cli.StringFlag{
-			Name:  "user",
+			Name:  "db-host",
+			Usage: "mysql address or sqlite db file",
+			Value: db.Sqlite + `://` + types.ClusterDBName + ".db",
+		},
+		cli.StringFlag{
+			Name:  "db-user",
 			Usage: "mysql username",
 			Value: "root",
 		},
 		cli.StringFlag{
-			Name:  "pass",
+			Name:  "db-pass",
 			Usage: "mysql password",
 			Value: "rootroot",
 		},
 		cli.StringFlag{
-			Name:  "dbhost",
-			Usage: "mysql address",
-			Value: "localhost",
+			Name:  "db-name",
+			Usage: "mysql database name",
+			Value: types.ClusterDBName,
 		},
 		cli.StringFlag{
 			Name:  "dsn",
@@ -59,15 +65,26 @@ func main() {
 }
 
 func serve(ctx *cli.Context) error {
-	h, err := manager.NewHandler(
-		manager.Config{
-			Driver:           db.Sqlite,
-			DBAddress:        ctx.String("dbhost"),
-			DBUser:           ctx.GlobalString("user"),
-			DBPass:           ctx.String("pass"),
-			DBName:           types.ClusterDBName + ".db",
-			ScheduleInterval: ctx.Duration("schedule-interval"),
-		})
+	parts := strings.Split(ctx.String("db-host"), `://`)
+	if len(parts) != 2 {
+		return errors.New("db-host must be sqlite://<sqlite filename> or mysql://<mysql address>")
+	}
+
+	cfg := manager.Config{
+		DBAddress:        ctx.String("db-host"),
+		DBUser:           ctx.GlobalString("db-user"),
+		DBPass:           ctx.String("db-pass"),
+		DBName:           ctx.String("db-name"),
+		ScheduleInterval: ctx.Duration("schedule-interval"),
+	}
+	if parts[0] == db.MySQL {
+		cfg.Driver = db.MySQL
+	} else {
+		cfg.Driver = db.Sqlite
+	}
+	cfg.DBAddress = parts[1]
+
+	h, err := manager.NewHandler(cfg)
 	if err != nil {
 		return err
 	}
