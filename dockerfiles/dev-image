@@ -5,7 +5,7 @@ ENV GOPATH=/go
 
 RUN apt-get -yqq update && apt-get install -yq --no-install-recommends man-db vim build-essential \
   curl apt-transport-https ca-certificates software-properties-common \
-  && apt-get install -yq ffmpeg mysql-server \
+  && apt-get install -yq ffmpeg sqlite3 mysql-server \
   && apt-get clean autoclean && apt-get autoremove -y && rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 # install docker

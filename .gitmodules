@@ -1,0 +1,3 @@
+[submodule "tests/test-media"]
+	path = tests/test-media
+	url = https://github.com/leslie-wang/test-media.git

@@ -3,6 +3,7 @@ package manager
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -21,20 +22,41 @@ func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
-	job := &types.JobResult{}
-	err := json.NewDecoder(r.Body).Decode(job)
+	jobID, err := strconv.Atoi(mux.Vars(r)[types.ID])
 	if err != nil {
 		util.WriteError(w, err)
 		return
 	}
 
-	err = h.jobDB.CompleteAndArchive(job.ID, job.ExitCode)
+	job := &types.JobResult{}
+	err = json.NewDecoder(r.Body).Decode(job)
+	if err != nil {
+		util.WriteError(w, err)
+		return
+	}
+
+	err = h.jobDB.CompleteAndArchive(jobID, &job.ExitCode)
 	if err != nil {
 		util.WriteError(w, err)
 		return
 	}
 
 	// TODO: save stdout and stderr
+	util.WriteBody(w, job)
+}
+
+func (h *Handler) getJob(w http.ResponseWriter, r *http.Request) {
+	jobID, err := strconv.Atoi(mux.Vars(r)[types.ID])
+	if err != nil {
+		util.WriteError(w, err)
+		return
+	}
+
+	job, err := h.jobDB.Get(jobID)
+	if err != nil {
+		util.WriteError(w, err)
+		return
+	}
 	util.WriteBody(w, job)
 }
 

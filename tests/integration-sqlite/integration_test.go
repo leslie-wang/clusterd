@@ -1,17 +1,33 @@
 package integration_sqlite
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/leslie-wang/clusterd/common/db"
+	"github.com/leslie-wang/clusterd/types"
 	"github.com/stretchr/testify/suite"
 )
 
+var (
+	dbscheduleDir = filepath.Join("..", "..", "migrations", "sqlite")
+	mediaDir      = filepath.Join("..", "test-media", "apple", "basic-stream-osx-ios4-3")
+	mediaFile     = "gear1_mix.mp4"
+)
+
 type IntegrationTestSuite struct {
+	sqliteDBFile string
+	globalCtx    context.Context
+	globalCancel context.CancelFunc
 	suite.Suite
 	testOriginServer *httptest.Server
 	//simPlayer        *net.UDPConn
@@ -19,67 +35,116 @@ type IntegrationTestSuite struct {
 }
 
 func (suite *IntegrationTestSuite) SetupSuite() {
+	suite.globalCtx, suite.globalCancel = context.WithCancel(context.Background())
+
+	// start manager and runner
+	// create sqlite database file
+	f, err := os.CreateTemp("", types.ClusterDBName)
+	suite.Require().NoError(err)
+	suite.sqliteDBFile = f.Name()
+	err = f.Close()
+	suite.Require().NoError(err)
+
+	fmt.Printf("---- testing sqlite db: %s\n", suite.sqliteDBFile)
+
+	cmd := exec.Command("sqlite3", suite.sqliteDBFile)
+	buf := &bytes.Buffer{}
+	for _, n := range []string{"0.sql"} {
+		schema, err := os.ReadFile(filepath.Join(dbscheduleDir, n))
+		suite.Require().NoError(err)
+		_, err = buf.Write(schema)
+		suite.Require().NoError(err)
+	}
+	cmd.Stdin = buf
+
+	content, err := cmd.CombinedOutput()
+	suite.Require().NoError(err, string(content))
+
+	go func() {
+		cmd := exec.CommandContext(suite.globalCtx, "cd-manager", "--db-host", db.Sqlite+"://"+suite.sqliteDBFile)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+	}()
+
+	go func() {
+		cmd := exec.CommandContext(suite.globalCtx, "cd-runner", "--mgr-host", "localhost")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+	}()
+
+	content, err = exec.CommandContext(suite.globalCtx, "ls", "-lh", mediaDir).CombinedOutput()
+	suite.Require().NoError(err, string(content))
+	fmt.Printf("---- origin server has below contents:" + string(content))
+
 	// setup one origin server because all tests need the same one.
 	suite.testOriginServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("---- OS: serving %s\n", r.URL)
-		f, err := os.Open("../../samples" + r.URL.Path)
+		fmt.Printf("---- OS: serving [%s] from %s\n", r.URL.Path, mediaDir)
+		f, err := os.Open(mediaDir + r.URL.Path)
 		suite.Require().NoError(err)
 		defer f.Close()
 
-		_, err = io.Copy(w, f)
+		_, err = f.Seek(0, 0)
 		suite.Require().NoError(err)
+
+		// add pacing to prevent ffmpeg quit too fast
+		size, err := io.Copy(w, f)
+		suite.Require().NoError(err)
+		fmt.Printf("---- OS: served %d byte\n", size)
 	}))
 }
 
 func (suite *IntegrationTestSuite) TearDownSuite() {
 	// close origin server at last
 	suite.testOriginServer.Close()
-}
 
-/*
-func run(prog string, args ...string) error {
-	content, err := exec.Command(prog, args...).CombinedOutput()
-	if err != nil {
-		fmt.Println(string(content))
-	}
-	return err
+	suite.killProcess("cd-manager")
+	suite.killProcess("cd-runner")
+
+	suite.globalCancel()
 }
-*/
 
 func (suite *IntegrationTestSuite) SetupTest() {
-	// install manager and runner
-
-	/*
-		// setup udp receiver
-		address := simPlayerIP + ":" + strconv.Itoa(simPlayerPort)
-
-		// Resolve the UDP address
-		udpAddr, err := net.ResolveUDPAddr("udp", address)
-		suite.Require().NoError(err)
-
-		// Create a UDP connection
-		suite.simPlayer, err = net.ListenUDP("udp", udpAddr)
-		suite.Require().NoError(err)
-
-		// start proxy server
-		suite.testProxyServer = httptest.NewServer(suite.handler.CreateRouter())
-		suite.testProxyClient = hls2udp.NewClient(suite.testProxyServer.URL)
-
-		fmt.Printf("test origin server: %s\n", suite.testOriginServer.URL)
-		fmt.Printf("test proxy server: %s\n", suite.testProxyServer.URL)
-	*/
 }
 
 func (suite *IntegrationTestSuite) TearDownTest() {
-	/*
-		suite.simPlayer.Close()
-		suite.testProxyServer.Close()
-	*/
 }
 
 // All methods that begin with "Test" are run as tests within a
 // suite.
-func (suite *IntegrationTestSuite) TestRecord() {
+func (suite *IntegrationTestSuite) TestRecordNow() {
+	// make sure manager is started, and no jobs yet
+	jobs := suite.listJobs()
+	suite.Require().Equal(0, len(jobs))
+
+	u := suite.testOriginServer.URL + "/" + mediaFile
+
+	// assume the job will finish in 10 second
+	id := suite.createRecord(u, "", "10s")
+
+	jobs = suite.listJobs()
+	suite.Require().Equal(1, len(jobs))
+	suite.Require().Equal(id, jobs[0].ID)
+	suite.Require().Equal(types.CategoryRecord, jobs[0].Category)
+
+	// wait 5 seconds, and runner should have finished the job
+	time.Sleep(5 * time.Second)
+
+	jobs = suite.listJobs()
+	suite.Require().Equal(0, len(jobs))
+
+	job := suite.getJob(id)
+	suite.Require().Equal(types.CategoryRecord, job.Category)
+	suite.Require().NotNil(job.RunningHost)
+	suite.Require().NotNil(job.StartTime)
+	suite.Require().NotNil(job.ExitCode)
+
+	suite.Require().Equal(0, *job.ExitCode)
+
+	name, err := os.Hostname()
+	suite.Require().NoError(err)
+	suite.Require().Equal(name, *job.RunningHost)
 }
 
 func TestIntegrationBasic(t *testing.T) {
