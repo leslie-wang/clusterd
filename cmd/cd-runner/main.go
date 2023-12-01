@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/leslie-wang/clusterd/handler/runner"
@@ -58,7 +60,7 @@ func main() {
 		cli.DurationFlag{
 			Name:  "interval, i",
 			Usage: "interval to fetch next job",
-			Value: 10 * time.Second,
+			Value: time.Second,
 		},
 	}
 
@@ -68,6 +70,8 @@ func main() {
 }
 
 func serve(ctx *cli.Context) error {
+	installSignalHandler()
+
 	handler := runner.NewHandler(runner.Config{
 		MgrHost:  ctx.GlobalString("mgr-host"),
 		MgrPort:  ctx.GlobalUint("mgr-port"),
@@ -94,4 +98,33 @@ func serve(ctx *cli.Context) error {
 		log.Printf("Stop http listener")
 	}()
 	return handler.Run(context.Background())
+}
+
+func installSignalHandler() {
+	sigChan := make(chan os.Signal, 4)
+
+	go func() {
+		for {
+			sig, ok := <-sigChan
+			if !ok {
+				return
+			}
+
+			switch sig {
+			case syscall.SIGTERM, syscall.SIGINT:
+				os.Exit(0)
+			default:
+				os.Exit(1)
+			}
+		}
+	}()
+
+	signal.Notify(
+		sigChan,
+		syscall.SIGUSR1,
+		syscall.SIGUSR2,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGHUP,
+	)
 }

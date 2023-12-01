@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/leslie-wang/clusterd/common/db"
@@ -84,6 +86,8 @@ func serve(ctx *cli.Context) error {
 	}
 	cfg.DBAddress = parts[1]
 
+	installSignalHandler()
+
 	h, err := manager.NewHandler(cfg)
 	if err != nil {
 		return err
@@ -100,4 +104,33 @@ func serve(ctx *cli.Context) error {
 		Handler: h.CreateRouter(),
 	}
 	return s.Serve(l)
+}
+
+func installSignalHandler() {
+	sigChan := make(chan os.Signal, 4)
+
+	go func() {
+		for {
+			sig, ok := <-sigChan
+			if !ok {
+				return
+			}
+
+			switch sig {
+			case syscall.SIGTERM, syscall.SIGINT:
+				os.Exit(0)
+			default:
+				os.Exit(1)
+			}
+		}
+	}()
+
+	signal.Notify(
+		sigChan,
+		syscall.SIGUSR1,
+		syscall.SIGUSR2,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGHUP,
+	)
 }

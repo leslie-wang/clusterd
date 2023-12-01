@@ -15,7 +15,8 @@ const (
 					select id, ref_id, category, metadata, runner, ?, create_time, start_time, CURRENT_TIMESTAMP from jobs where id=?`
 	listJobs            = "select id, ref_id, category, metadata, runner, create_time, schedule_time, start_time, last_seen_time from jobs"
 	getNotStartedJob    = "select id, category, metadata, schedule_time from jobs where start_time is null and schedule_time < ? order by create_time limit 1"
-	getNotFinishJobByID = "select id, ref_id, category, metadata, runner, create_time, start_time, last_seen_time from jobs where id=?"
+	getNotFinishJobByID = "select ref_id, category, metadata, runner, create_time, start_time, schedule_time, last_seen_time from jobs where id=?"
+	getArchivedJobByID  = "select ref_id, category, metadata, runner, exit_code, create_time, start_time, end_time from job_archives where id=?"
 	updateJobForRunner  = "update jobs set runner=?, start_time=CURRENT_TIMESTAMP, last_seen_time=CURRENT_TIMESTAMP where id=?"
 	removeJob           = "delete from jobs where id=?"
 
@@ -28,6 +29,7 @@ var (
 		listJobs,
 		getNotStartedJob,
 		getNotFinishJobByID,
+		getArchivedJobByID,
 		updateJobForRunner,
 		listActiveRunners,
 		archiveJob,
@@ -59,7 +61,8 @@ func (j *DB) Prepare() error {
 }
 
 func (j *DB) Insert(tx *sql.Tx, job *types.Job) error {
-	res, err := tx.Exec(insertJob, job.RefID, job.Category, job.Metadata, job.ScheduleTime)
+	// convert to utc time
+	res, err := tx.Exec(insertJob, job.RefID, job.Category, job.Metadata, job.ScheduleTime.UTC())
 	if err != nil {
 		return err
 	}
@@ -94,7 +97,7 @@ func (j *DB) List() ([]types.Job, error) {
 	return jobs, nil
 }
 
-func (j *DB) GetUnStartedJob() (*types.Job, error) {
+func (j *DB) GetUnStarted() (*types.Job, error) {
 	job := &types.Job{}
 	s := prepareJobStatements[getNotStartedJob]
 
@@ -146,7 +149,7 @@ func (j *DB) Acquire(runner string, scheduleTime time.Time) (*types.Job, error) 
 
 	job := &types.Job{}
 
-	err = getStmt.QueryRowContext(context.Background(), scheduleTime).Scan(&job.ID, &job.Category, &job.Metadata, &job.ScheduleTime)
+	err = getStmt.QueryRowContext(context.Background(), scheduleTime.UTC()).Scan(&job.ID, &job.Category, &job.Metadata, &job.ScheduleTime)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -168,7 +171,7 @@ func (j *DB) Acquire(runner string, scheduleTime time.Time) (*types.Job, error) 
 	return job, tx.Commit()
 }
 
-func (j *DB) CompleteAndArchive(id, exitCode int) error {
+func (j *DB) CompleteAndArchive(id int, exitCode *int) error {
 	tx, err := j.db.Begin()
 	if err != nil {
 		return err
@@ -198,4 +201,41 @@ func (j *DB) CompleteAndArchive(id, exitCode int) error {
 	}
 
 	return tx.Commit()
+}
+
+func (j *DB) Get(id int) (*types.Job, error) {
+	tx, err := j.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() // Rollback the transaction if an error occurs
+
+	job := &types.Job{ID: id}
+	stmt, err := tx.Prepare(getNotFinishJobByID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = stmt.QueryRowContext(context.Background(), id).Scan(&job.RefID, &job.Category, &job.Metadata,
+		&job.RunningHost, &job.CreateTime, &job.StartTime, &job.ScheduleTime, &job.LastSeenTime)
+	if err == nil {
+		return job, tx.Commit()
+	} else if err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	// not in queue, maybe finished, try search from archive
+	stmt, err = tx.Prepare(getArchivedJobByID)
+	if err != nil {
+		return nil, err
+	}
+	err = stmt.QueryRowContext(context.Background(), id).Scan(&job.RefID, &job.Category, &job.Metadata,
+		&job.RunningHost, &job.ExitCode, &job.CreateTime, &job.StartTime, &job.EndTime)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return job, tx.Commit()
 }

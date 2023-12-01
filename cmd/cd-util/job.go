@@ -7,7 +7,9 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/leslie-wang/clusterd/client/manager"
 	"github.com/leslie-wang/clusterd/types"
@@ -15,10 +17,32 @@ import (
 )
 
 func listJobs(ctx *cli.Context) error {
+	var (
+		err        error
+		retryCount uint
+		jobs       []types.Job
+	)
+
 	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
-	jobs, err := mc.ListJobs()
-	if err != nil {
-		return err
+	for {
+		jobs, err = mc.ListJobs()
+		if err == nil {
+			break
+		}
+		if !strings.Contains(err.Error(), "connection refused") {
+			return err
+		}
+
+		if retryCount >= ctx.Uint("retry-count") {
+			return err
+		}
+
+		fmt.Printf("sleep %s and retry. got error: %s\n", ctx.Duration("retry-interval"), err)
+
+		time.Sleep(ctx.Duration("retry-interval"))
+
+		retryCount++
+		fmt.Printf("#%d retry list jobs\n", retryCount)
 	}
 
 	writer := tabwriter.NewWriter(os.Stdout, 5, 1, 1, ' ', 0)
@@ -43,26 +67,16 @@ func listJobs(ctx *cli.Context) error {
 		line := fmt.Sprintf("%d\t%s\t%s\t%s\t%s\t%s\n", j.ID, ct, h, st, lt, j.Metadata)
 		writer.Write([]byte(line))
 	}
-	return nil
-}
 
-func submitJob(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 {
-		return errors.New("please provide commands")
+	outputFilename := ctx.String("output")
+	if outputFilename == "" {
+		return nil
 	}
-	j := types.Job{
-		//RefID:    ctx.String("ref-id"),
-		//Commands: ctx.Args(),
-	}
-	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
-	err := mc.CreateJob(&j)
+	content, err := json.MarshalIndent(jobs, "", "  ")
 	if err != nil {
 		return err
 	}
-
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(j)
+	return os.WriteFile(outputFilename, content, 0755)
 }
 
 func getJobLog(ctx *cli.Context) error {
@@ -82,4 +96,31 @@ func getJobLog(ctx *cli.Context) error {
 	defer logReader.Close()
 	_, err = io.Copy(os.Stdout, logReader)
 	return err
+}
+
+func getJob(ctx *cli.Context) error {
+	if len(ctx.Args()) != 1 {
+		return errors.New("please provide one job ID")
+	}
+	id, err := strconv.Atoi(ctx.Args()[0])
+	if err != nil {
+		return errors.New("job ID must be integer, please provide a valid job ID")
+	}
+
+	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
+	job, err := mc.GetJob(id)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%v\n", job)
+
+	outputFilename := ctx.String("output")
+	if outputFilename == "" {
+		return nil
+	}
+	content, err := json.MarshalIndent(job, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(outputFilename, content, 0755)
 }

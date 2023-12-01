@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"text/tabwriter"
+	"time"
 
 	"github.com/leslie-wang/clusterd/client/manager"
 	"github.com/leslie-wang/clusterd/types"
@@ -38,6 +39,32 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		{
+			Name:    "record",
+			Aliases: []string{"r"},
+			Subcommands: []cli.Command{
+				{
+					Name:    "create",
+					Aliases: []string{"c"},
+					Usage: "create record task. if start time is not provided, record will start in 5 second." +
+						" [record URL] [[start time]] [duration]",
+					Action: createRecordTask,
+					Flags: []cli.Flag{
+						cli.UintFlag{
+							Name: "retry-count",
+						},
+						cli.DurationFlag{
+							Name:  "retry-interval",
+							Value: 5 * time.Second,
+						},
+						cli.StringFlag{
+							Name:  "output, o",
+							Usage: "output file which saves new task ID",
+						},
+					},
+				},
+			},
+		},
+		{
 			Name:    "runner",
 			Aliases: []string{"r"},
 			Subcommands: []cli.Command{
@@ -48,26 +75,27 @@ func main() {
 					Action:  listRunners,
 				},
 			},
-		}, {
+		},
+		{
 			Name:    "job",
 			Aliases: []string{"j"},
 			Subcommands: []cli.Command{
 				{
-					Name:    "list",
+					Name:    "queue",
 					Aliases: []string{"l"},
 					Usage:   "list all in queue jobs",
 					Action:  listJobs,
-				},
-				{
-					Name:      "submit",
-					Aliases:   []string{"s"},
-					Usage:     "submit a new job",
-					ArgsUsage: "[Commands]",
-					Action:    submitJob,
 					Flags: []cli.Flag{
+						cli.UintFlag{
+							Name: "retry-count",
+						},
+						cli.DurationFlag{
+							Name:  "retry-interval",
+							Value: 5 * time.Second,
+						},
 						cli.StringFlag{
-							Name:  "ref-id, i",
-							Usage: "reference ID in caller system",
+							Name:  "output, o",
+							Usage: "output file which saves job list",
 						},
 					},
 				},
@@ -76,6 +104,18 @@ func main() {
 					Usage:     "get one job's log",
 					ArgsUsage: "[job ID]",
 					Action:    getJobLog,
+				},
+				{
+					Name:      "get",
+					Usage:     "get one job",
+					ArgsUsage: "[job ID]",
+					Action:    getJob,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "output, o",
+							Usage: "output file which saves job info",
+						},
+					},
 				},
 			},
 		},

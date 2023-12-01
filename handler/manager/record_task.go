@@ -50,6 +50,10 @@ func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskR
 		return nil, err
 	}
 
+	if r.EndTime == nil {
+		return nil, errors.New("EndTime can not be empty")
+	}
+
 	tx, err := h.newTx()
 	if err != nil {
 		return nil, err
@@ -83,11 +87,15 @@ func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskR
 		Category: types.CategoryRecord,
 		Metadata: string(content),
 	}
+
+	var st time.Time
 	if r.StartTime == nil {
-		job.ScheduleTime = time.Now()
+		st = time.Now()
 	} else {
-		job.ScheduleTime = time.Unix(int64(*r.StartTime), 0).UTC()
+		st = time.Unix(int64(*r.StartTime), 0)
 	}
+	job.ScheduleTime = &st
+
 	err = h.jobDB.Insert(tx, job)
 	if err != nil {
 		return nil, err

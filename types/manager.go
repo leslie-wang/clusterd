@@ -47,9 +47,11 @@ type Job struct {
 	Category     JobCategory `json:"category"`
 	Metadata     string      `json:"metadata"`
 	RunningHost  *string     `json:"run_on,omitempty"`
+	ExitCode     *int        `json:"exit_code,omitempty"`
 	CreateTime   time.Time   `json:"create_time"`
-	ScheduleTime time.Time   `json:"schedule_time"`
-	StartTime    *time.Time  `json:"Start_time,omitempty"`
+	ScheduleTime *time.Time  `json:"schedule_time"`
+	StartTime    *time.Time  `json:"start_time,omitempty"`
+	EndTime      *time.Time  `json:"end_time,omitempty"`
 	LastSeenTime *time.Time  `json:"last_seen_time,omitempty"`
 }
 

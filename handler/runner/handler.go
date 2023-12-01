@@ -152,8 +152,9 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 		return -1, err
 	}
 	mediaFile := filepath.Join(dir, recordFilename)
-	args := []string{"-re", "-i", r.SourceURL, "-c", "copy",
+	args := []string{"-i", r.SourceURL, "-c", "copy", "-hls_time", "10",
 		"-hls_playlist_type", "vod", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", mediaFile}
+	fmt.Printf("---- ffmpeg %v\n", args)
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	cmd.Dir = dir
 
@@ -170,5 +171,8 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 	if err != nil {
 		return -1, fmt.Errorf("%v: %s\n", args, err)
 	}
-	return 0, nil
+	if cmd.ProcessState == nil {
+		return -1, fmt.Errorf("empty process state after run")
+	}
+	return cmd.ProcessState.ExitCode(), nil
 }
