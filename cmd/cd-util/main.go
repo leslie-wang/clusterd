@@ -62,6 +62,12 @@ func main() {
 						},
 					},
 				},
+				{
+					Name:      "cancel",
+					Usage:     "cancel one recording",
+					ArgsUsage: "[job ID]",
+					Action:    cancelRecordTask,
+				},
 			},
 		},
 		{

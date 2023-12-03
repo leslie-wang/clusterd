@@ -35,7 +35,7 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.jobDB.CompleteAndArchive(jobID, &job.ExitCode)
+	err = h.jobDB.CompleteAndArchive(int64(jobID), &job.ExitCode)
 	if err != nil {
 		util.WriteError(w, err)
 		return

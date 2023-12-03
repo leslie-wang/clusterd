@@ -78,3 +78,16 @@ func createRecordTask(ctx *cli.Context) error {
 		fmt.Printf("#%d retry create record\n", retryCount)
 	}
 }
+
+func cancelRecordTask(ctx *cli.Context) error {
+	if len(ctx.Args()) != 1 {
+		return errors.New("please provide one job ID")
+	}
+	_, err := strconv.Atoi(ctx.Args()[0])
+	if err != nil {
+		return errors.New("job ID must be integer, please provide a valid job ID")
+	}
+
+	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
+	return mc.CancelRecordTask(ctx.Args()[0])
+}

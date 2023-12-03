@@ -37,11 +37,20 @@ func (h *Handler) handleDeleteRecordTask(q url.Values) (*model.DeleteLiveRecordR
 		return nil, err
 	}
 
-	err = h.recordDB.RemoveRecordTask(id)
+	tx, err := h.newTx()
 	if err != nil {
 		return nil, err
 	}
-	return &model.DeleteLiveRecordRuleResponse{Response: &model.DeleteLiveRecordRuleResponseParams{}}, nil
+	defer tx.Rollback()
+	err = h.recordDB.RemoveRecordTask(tx, id)
+	if err != nil {
+		return nil, err
+	}
+	err = h.jobDB.CompleteAndArchiveWithTx(tx, id, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &model.DeleteLiveRecordRuleResponse{Response: &model.DeleteLiveRecordRuleResponseParams{}}, tx.Commit()
 }
 
 func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskResponse, error) {
