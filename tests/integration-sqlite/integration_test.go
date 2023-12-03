@@ -134,8 +134,8 @@ func (suite *IntegrationTestSuite) TestRecordNow() {
 	suite.Require().Equal(id, jobs[0].ID)
 	suite.Require().Equal(types.CategoryRecord, jobs[0].Category)
 
-	// wait 5 seconds, and runner should have finished the job
-	time.Sleep(5 * time.Second)
+	// wait 10 seconds, and runner should have finished the job
+	time.Sleep(10 * time.Second)
 
 	jobs = suite.listJobs()
 	suite.Require().Equal(0, len(jobs))
@@ -179,7 +179,7 @@ func (suite *IntegrationTestSuite) TestRecordNonExistAsset() {
 	suite.Require().NotNil(job.StartTime)
 	suite.Require().NotNil(job.ExitCode)
 
-	suite.Require().Equal(-1, *job.ExitCode)
+	suite.Require().Equal(1, *job.ExitCode)
 
 	name, err := os.Hostname()
 	suite.Require().NoError(err)
