@@ -80,18 +80,25 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 
 	// setup one origin server because all tests need the same one.
 	suite.testOriginServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("---- OS: serving [%s] from %s\n", r.URL.Path, mediaDir)
 		f, err := os.Open(mediaDir + r.URL.Path)
-		suite.Require().NoError(err)
+		if err != nil {
+			fmt.Printf("---- OS: serving [%s] from %s: %s\n", r.URL.Path, mediaDir, err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		defer f.Close()
 
+		fmt.Printf("---- OS: serving [%s] from %s\n", r.URL.Path, mediaDir)
 		_, err = f.Seek(0, 0)
 		suite.Require().NoError(err)
 
 		// add pacing to prevent ffmpeg quit too fast
 		size, err := io.Copy(w, f)
-		suite.Require().NoError(err)
-		fmt.Printf("---- OS: served %d byte\n", size)
+		if err != nil {
+			fmt.Printf("---- OS: served error: %s\n", err)
+		} else {
+			fmt.Printf("---- OS: served %d byte\n", size)
+		}
 	}))
 }
 
@@ -111,8 +118,7 @@ func (suite *IntegrationTestSuite) SetupTest() {
 func (suite *IntegrationTestSuite) TearDownTest() {
 }
 
-// All methods that begin with "Test" are run as tests within a
-// suite.
+// All methods that begin with "Test" are run as tests within a suite.
 func (suite *IntegrationTestSuite) TestRecordNow() {
 	// make sure manager is started, and no jobs yet
 	jobs := suite.listJobs()
@@ -141,6 +147,39 @@ func (suite *IntegrationTestSuite) TestRecordNow() {
 	suite.Require().NotNil(job.ExitCode)
 
 	suite.Require().Equal(0, *job.ExitCode)
+
+	name, err := os.Hostname()
+	suite.Require().NoError(err)
+	suite.Require().Equal(name, *job.RunningHost)
+}
+
+func (suite *IntegrationTestSuite) TestRecordNonExistAsset() {
+	jobs := suite.listJobs()
+	suite.Require().Equal(0, len(jobs))
+
+	u := suite.testOriginServer.URL + "/not-exist"
+
+	// assume the job will finish in 10 second
+	id := suite.createRecord(u, "", "10s")
+
+	jobs = suite.listJobs()
+	suite.Require().Equal(1, len(jobs))
+	suite.Require().Equal(id, jobs[0].ID)
+	suite.Require().Equal(types.CategoryRecord, jobs[0].Category)
+
+	// wait 5 seconds, and runner should have finished the job
+	time.Sleep(5 * time.Second)
+
+	jobs = suite.listJobs()
+	suite.Require().Equal(0, len(jobs))
+
+	job := suite.getJob(id)
+	suite.Require().Equal(types.CategoryRecord, job.Category)
+	suite.Require().NotNil(job.RunningHost)
+	suite.Require().NotNil(job.StartTime)
+	suite.Require().NotNil(job.ExitCode)
+
+	suite.Require().Equal(-1, *job.ExitCode)
 
 	name, err := os.Hostname()
 	suite.Require().NoError(err)
