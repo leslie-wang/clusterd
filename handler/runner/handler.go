@@ -146,6 +146,22 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 		return -1, err
 	}
 
+	// sleep until start time
+	var duration time.Duration
+	if r.StartTime != nil {
+		startTime := time.Unix(int64(*r.StartTime), 0)
+		if startTime.Before(time.Now()) {
+			return -1, fmt.Errorf("start time (%s) is earlier than now (%s)", startTime, time.Now())
+		}
+		time.Sleep(time.Until(startTime))
+		duration = time.Duration(*r.EndTime-*r.StartTime) * time.Second
+	} else {
+		duration = time.Until(time.Unix(int64(*r.EndTime), 0))
+	}
+
+	runCtx, cancel := context.WithTimeout(ctx, duration)
+	defer cancel()
+
 	dir := filepath.Join(h.c.Workdir, strconv.Itoa(j.ID))
 	err = os.MkdirAll(dir, 0777)
 	if err != nil {
@@ -155,7 +171,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 	args := []string{"-i", r.SourceURL, "-c", "copy", "-hls_time", "10",
 		"-hls_playlist_type", "vod", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", mediaFile}
 	fmt.Printf("---- ffmpeg %v\n", args)
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
 	cmd.Dir = dir
 
 	logFile, err := os.Create(filepath.Join(dir, logFilename))
@@ -164,15 +180,29 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 	}
 	defer logFile.Close()
 
-	cmd.Stdout = logFile
-	cmd.Stderr = logFile
+	errChan := make(chan error)
+	go func() {
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
 
-	err = cmd.Run()
-	if err != nil {
-		return -1, fmt.Errorf("%v: %s\n", args, err)
+		err = cmd.Run()
+		if err != nil {
+			err = fmt.Errorf("%v: %s\n", args, err)
+		} else if cmd.ProcessState == nil {
+			err = fmt.Errorf("empty process state after run")
+		}
+		errChan <- err
+	}()
+
+	select {
+	case err = <-errChan:
+	case <-runCtx.Done():
+		err = ctx.Err()
+		if err == context.DeadlineExceeded {
+			// recording is end now.
+			err = nil
+		}
 	}
-	if cmd.ProcessState == nil {
-		return -1, fmt.Errorf("empty process state after run")
-	}
-	return cmd.ProcessState.ExitCode(), nil
+
+	return cmd.ProcessState.ExitCode(), err
 }
