@@ -228,8 +228,7 @@ func (r *DB) ListRecordTasks(ctx context.Context) ([]*model.RecordTask, error) {
 	return tasks, nil
 }
 
-func (r *DB) RemoveRecordTask(id int64) error {
-	s := prepareRecordStatements[removeRecordTask]
-	_, err := s.Exec(id)
+func (r *DB) RemoveRecordTask(tx *sql.Tx, id int64) error {
+	_, err := tx.Exec(removeRecordTask, id)
 	return err
 }

@@ -171,13 +171,21 @@ func (j *DB) Acquire(runner string, scheduleTime time.Time) (*types.Job, error) 
 	return job, tx.Commit()
 }
 
-func (j *DB) CompleteAndArchive(id int, exitCode *int) error {
+func (j *DB) CompleteAndArchive(id int64, exitCode *int) error {
 	tx, err := j.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() // Rollback the transaction if an error occurs
 
+	err = j.CompleteAndArchiveWithTx(tx, id, exitCode)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (j *DB) CompleteAndArchiveWithTx(tx *sql.Tx, id int64, exitCode *int) error {
 	archStmt, err := tx.Prepare(archiveJob)
 	if err != nil {
 		return err
@@ -196,11 +204,7 @@ func (j *DB) CompleteAndArchive(id int, exitCode *int) error {
 	defer removeStmt.Close()
 
 	_, err = removeStmt.Exec(id)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return err
 }
 
 func (j *DB) Get(id int) (*types.Job, error) {

@@ -134,7 +134,28 @@ func (h *Handler) Run(ctx context.Context) error {
 
 func (h *Handler) runJob(ctx context.Context, j *types.Job) (int, error) {
 	if j.Category == types.CategoryRecord {
-		return h.runRecordJob(ctx, j)
+		runCtx, cancel := context.WithCancel(ctx)
+		go func() {
+			//pull status, and cancel job if it is deleted
+			for {
+				currentJob, err := h.cli.GetJob(j.ID)
+				if err != nil {
+					log.Printf("get job ID failure: %s\n", err)
+					goto sleep
+				}
+				if currentJob.EndTime == nil {
+					// not finished, sleep
+					goto sleep
+				}
+				if currentJob.ExitCode == nil {
+					cancel()
+				}
+				return
+			sleep:
+				time.Sleep(5 * time.Second)
+			}
+		}()
+		return h.runRecordJob(runCtx, j)
 	}
 	return -1, fmt.Errorf("unknown job category: %v", j)
 }

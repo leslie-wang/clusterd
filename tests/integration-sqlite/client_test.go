@@ -56,6 +56,12 @@ func (suite *IntegrationTestSuite) getJob(id int) *types.Job {
 	return job
 }
 
+func (suite *IntegrationTestSuite) cancelJob(id int) {
+	content, err := exec.CommandContext(suite.globalCtx, "cd-util", "--mgr-host", "localhost", "record",
+		"cancel", strconv.Itoa(id)).CombinedOutput()
+	suite.Require().NoError(err, string(content))
+}
+
 func (suite *IntegrationTestSuite) createRecord(u, start, end string) int {
 	f, err := os.CreateTemp("", "")
 	suite.Require().NoError(err)

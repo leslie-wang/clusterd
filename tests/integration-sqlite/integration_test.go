@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -61,7 +62,8 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	suite.Require().NoError(err, string(content))
 
 	go func() {
-		cmd := exec.CommandContext(suite.globalCtx, "cd-manager", "--db-host", db.Sqlite+"://"+suite.sqliteDBFile)
+		cmd := exec.CommandContext(suite.globalCtx, "cd-manager", "--db-host", db.Sqlite+"://"+suite.sqliteDBFile,
+			"--schedule-interval", "2s")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Run()
@@ -167,8 +169,8 @@ func (suite *IntegrationTestSuite) TestRecordNonExistAsset() {
 	suite.Require().Equal(id, jobs[0].ID)
 	suite.Require().Equal(types.CategoryRecord, jobs[0].Category)
 
-	// wait 5 seconds, and runner should have finished the job
-	time.Sleep(5 * time.Second)
+	// wait 10 seconds, and runner should have finished the job
+	time.Sleep(10 * time.Second)
 
 	jobs = suite.listJobs()
 	suite.Require().Equal(0, len(jobs))
@@ -184,6 +186,32 @@ func (suite *IntegrationTestSuite) TestRecordNonExistAsset() {
 	name, err := os.Hostname()
 	suite.Require().NoError(err)
 	suite.Require().Equal(name, *job.RunningHost)
+}
+
+func (suite *IntegrationTestSuite) TestRecordDelete() {
+	jobs := suite.listJobs()
+	suite.Require().Equal(0, len(jobs))
+
+	u := suite.testOriginServer.URL + "/not-exist"
+
+	// assume the job will finish in 10 second
+	startTime := time.Now().Add(time.Hour)
+	id := suite.createRecord(u, strconv.Itoa(int(startTime.Unix())), "10s")
+
+	jobs = suite.listJobs()
+	suite.Require().Equal(1, len(jobs))
+	suite.Require().Equal(id, jobs[0].ID)
+	suite.Require().Equal(types.CategoryRecord, jobs[0].Category)
+
+	// wait 10 seconds, and runner should still not pickup
+	time.Sleep(10 * time.Second)
+	jobs = suite.listJobs()
+	suite.Require().Equal(1, len(jobs))
+
+	suite.cancelJob(id)
+
+	jobs = suite.listJobs()
+	suite.Require().Equal(0, len(jobs))
 }
 
 func TestIntegrationBasic(t *testing.T) {

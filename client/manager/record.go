@@ -48,3 +48,31 @@ func (c *Client) CreateRecordTask(url string, start, end *int64) (*string, error
 	createRecordResp := &model.CreateRecordTaskResponse{}
 	return createRecordResp.Response.TaskId, json.NewDecoder(resp.Body).Decode(createRecordResp)
 }
+
+func (c *Client) CancelRecordTask(id string) error {
+	cancelRecordURL := c.makeURL(types.URLRecord)
+	query := map[string]string{
+		manager.Action: manager.ActionDeleteRecordTask,
+		manager.TaskID: id,
+	}
+
+	cancelRecordURL = c.addQuery(cancelRecordURL, query)
+	fmt.Println(cancelRecordURL)
+
+	req, err := http.NewRequest(http.MethodPost, cancelRecordURL, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return util.MakeStatusError(resp.Body)
+	}
+	return nil
+}
