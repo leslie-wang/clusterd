@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -29,6 +28,22 @@ const (
 	listRecordTasks = "select id, template_id, domain_name, app_name, stream_name, " +
 		" start_time, end_time from record_tasks"
 	removeRecordTask = "delete from record_tasks where id=?"
+
+	insertCallbackTemplate = "insert into record_cb_templates (name, description, callback_key, begin_url, end_url, " +
+		"record_url, record_status_url, porn_censorship_url, stream_mix_url, push_exception_url, audio_audit_url, " +
+		"snapshot_url, create_time) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)"
+	listCallbackTemplates = "select id, name, description, callback_key, begin_url, end_url, " +
+		"record_url, record_status_url, porn_censorship_url, stream_mix_url, push_exception_url, audio_audit_url, " +
+		"snapshot_url, create_time from record_cb_templates"
+	getCallbackTemplate = "select name, description, callback_key, begin_url, end_url, " +
+		"record_url, record_status_url, porn_censorship_url, stream_mix_url, push_exception_url, audio_audit_url, " +
+		"snapshot_url from record_cb_templates where id=?"
+	removeCallbackTemplate = "delete from record_cb_templates where id=?"
+
+	insertCallbackRule = "insert into record_cb_rules (template_id, domain_name, app_name, create_time)" +
+		" values(?, ?, ?, CURRENT_TIMESTAMP)"
+	listCallbackRules                   = "select template_id, domain_name, app_name, create_time from record_cb_rules"
+	removeCallbackRuleByDomainAppStream = "delete from record_cb_rules where domain_name=? and app_name=?"
 )
 
 var (
@@ -36,13 +51,20 @@ var (
 		insertRecordRule,
 		insertRecordTask,
 		insertRecordTemplate,
+		insertCallbackRule,
+		insertCallbackTemplate,
 		listRecordRules,
 		listRecordTasks,
 		listRecordTemplates,
+		listCallbackRules,
+		listCallbackTemplates,
 		removeRecordRuleByDomainAppStream,
 		removeRecordTask,
 		removeRecordTemplate,
+		removeCallbackRuleByDomainAppStream,
+		removeCallbackTemplate,
 		getRecordTemplate,
+		getCallbackTemplate,
 	}
 	prepareRecordStatements map[string]*sql.Stmt
 )
@@ -93,10 +115,8 @@ func (r *DB) GetRecordTemplateByID(id int64) (*types.LiveRecordTemplate, error) 
 	)
 	err := s.QueryRow(id).Scan(&t.ID, &params, &t.CreateTime)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
-	fmt.Println(params)
 	err = json.Unmarshal([]byte(params), &tmpl)
 	if err != nil {
 		return nil, err
@@ -230,5 +250,102 @@ func (r *DB) ListRecordTasks(ctx context.Context) ([]*model.RecordTask, error) {
 
 func (r *DB) RemoveRecordTask(tx *sql.Tx, id int64) error {
 	_, err := tx.Exec(removeRecordTask, id)
+	return err
+}
+
+func (r *DB) InsertCallbackTemplate(t *model.CreateLiveCallbackTemplateRequestParams) (int64, error) {
+	s := prepareRecordStatements[insertCallbackTemplate]
+	res, err := s.Exec(t.TemplateName, t.Description, t.CallbackKey, t.StreamBeginNotifyUrl, t.StreamEndNotifyUrl,
+		t.RecordNotifyUrl, t.RecordStatusNotifyUrl, t.PornCensorshipNotifyUrl, t.StreamMixNotifyUrl,
+		t.PushExceptionNotifyUrl, t.AudioAuditNotifyUrl, t.SnapshotNotifyUrl)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func (r *DB) GetCallbackTemplateByID(id int64) (*model.CallBackTemplateInfo, error) {
+	s := prepareRecordStatements[getCallbackTemplate]
+
+	var (
+		t model.CallBackTemplateInfo
+	)
+	err := s.QueryRow(id).Scan(&t.TemplateId, &t.TemplateName, &t.Description, &t.CallbackKey,
+		&t.StreamBeginNotifyUrl, &t.StreamEndNotifyUrl, &t.RecordNotifyUrl, &t.RecordStatusNotifyUrl,
+		&t.PornCensorshipNotifyUrl, &t.StreamMixNotifyUrl, &t.PushExceptionNotifyUrl, &t.AudioAuditNotifyUrl,
+		&t.SnapshotNotifyUrl)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func (r *DB) ListCallbackTemplates(ctx context.Context) ([]model.CallBackTemplateInfo, error) {
+	s := prepareRecordStatements[listCallbackTemplates]
+
+	rows, err := s.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var tmpls []model.CallBackTemplateInfo
+	for rows.Next() {
+		var (
+			t model.CallBackTemplateInfo
+		)
+		err = rows.Scan(&t.TemplateId, &t.TemplateName, &t.Description, &t.CallbackKey,
+			&t.StreamBeginNotifyUrl, &t.StreamEndNotifyUrl, &t.RecordNotifyUrl, &t.RecordStatusNotifyUrl,
+			&t.PornCensorshipNotifyUrl, &t.StreamMixNotifyUrl, &t.PushExceptionNotifyUrl, &t.AudioAuditNotifyUrl,
+			&t.SnapshotNotifyUrl)
+		if err != nil {
+			return nil, err
+		}
+
+		tmpls = append(tmpls, t)
+	}
+
+	return tmpls, nil
+}
+
+func (r *DB) RemoveCallbackTemplate(id int64) error {
+	s := prepareRecordStatements[removeCallbackTemplate]
+	_, err := s.Exec(id)
+	return err
+}
+
+func (r *DB) InsertCallbackRule(ru *model.CreateLiveCallbackRuleRequestParams) (int64, error) {
+	s := prepareRecordStatements[insertCallbackRule]
+	res, err := s.Exec(ru.TemplateId, ru.DomainName, ru.AppName)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func (r *DB) ListCallbackRules(ctx context.Context) ([]*model.CallBackRuleInfo, error) {
+	s := prepareRecordStatements[listCallbackRules]
+
+	rows, err := s.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var rules []*model.CallBackRuleInfo
+	for rows.Next() {
+		ru := &model.CallBackRuleInfo{}
+		err = rows.Scan(&ru.TemplateId, &ru.DomainName, &ru.AppName, &ru.CreateTime)
+		if err != nil {
+			return nil, err
+		}
+
+		rules = append(rules, ru)
+	}
+
+	return rules, nil
+}
+
+func (r *DB) RemoveCallbackRuleByDomainApp(domain, app string) error {
+	s := prepareRecordStatements[removeCallbackRuleByDomainAppStream]
+	_, err := s.Exec(domain, app)
 	return err
 }

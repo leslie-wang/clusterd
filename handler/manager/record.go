@@ -23,12 +23,27 @@ const (
 	ActionCreateRecordTask   = "CreateRecordTask"
 	ActionDeleteRecordTask   = "DeleteRecordTask"
 	ActionStopRecordTask     = "StopRecordTask"
+
+	ActionDescribeLiveCallbackRules = "DescribeLiveCallbackRules"
+	ActionCreateLiveCallbackRule    = "CreateLiveCallbackRule"
+	ActionDeleteLiveCallbackRule    = "DeleteLiveCallbackRule"
+
+	ActionCreateLiveCallbackTemplate    = "CreateLiveCallbackTemplate"
+	ActionDescribeLiveCallbackTemplate  = "DescribeLiveCallbackTemplate"
+	ActionDescribeLiveCallbackTemplates = "DescribeLiveCallbackTemplates"
+	ActionDeleteLiveCallbackTemplate    = "DeleteLiveCallbackTemplate"
+	ActionModifyLiveCallbackTemplate    = "ModifyLiveCallbackTemplate"
 )
 
+// Template - Generic
 const (
-	TemplateID      = "TemplateId"
-	TemplateName    = "TemplateName"
-	Description     = "Description"
+	TemplateID   = "TemplateId"
+	TemplateName = "TemplateName"
+	Description  = "Description"
+)
+
+// Template - Record
+const (
 	FlvParam        = "FlvParam"
 	HlsParam        = "HlsParam"
 	Mp4Param        = "Mp4Param"
@@ -38,6 +53,20 @@ const (
 	Mp3Param        = "Mp3Param"
 	RemoveWatermark = "RemoveWatermark"
 	FlvSpecialParam = "FlvSpecialParam"
+)
+
+// Template - Callback
+const (
+	StreamBeginNotifyUrl    = "StreamBeginNotifyUrl"
+	StreamEndNotifyUrl      = "StreamEndNotifyUrl"
+	RecordNotifyUrl         = "RecordNotifyUrl"
+	RecordStatusNotifyUrl   = "RecordStatusNotifyUrl"
+	SnapshotNotifyUrl       = "SnapshotNotifyUrl"
+	PornCensorshipNotifyUrl = "PornCensorshipNotifyUrl"
+	CallbackKey             = "CallbackKey"
+	StreamMixNotifyUrl      = "StreamMixNotifyUrl"
+	PushExceptionNotifyUrl  = "PushExceptionNotifyUrl"
+	AudioAuditNotifyUrl     = "AudioAuditNotifyUrl"
 )
 
 // RecordParam string
@@ -107,6 +136,23 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 	case ActionDeleteRecordTask:
 		resp, err = h.handleDeleteRecordTask(q)
 	case ActionStopRecordTask:
+
+	case ActionDescribeLiveCallbackRules:
+		resp, err = h.handleDescribeLiveCallbackRules()
+	case ActionCreateLiveCallbackRule:
+		resp, err = h.handleCreateLiveCallbackRule(q)
+	case ActionDeleteLiveCallbackRule:
+		resp, err = h.handleDeleteLiveCallbackRule(q)
+
+	case ActionCreateLiveCallbackTemplate:
+		resp, err = h.handleCreateLiveCallbackTemplate(q)
+	case ActionDescribeLiveCallbackTemplate:
+		resp, err = h.handleDescribeLiveCallbackTemplates()
+	case ActionDescribeLiveCallbackTemplates:
+		resp, err = h.handleDescribeLiveCallbackTemplate(q)
+	case ActionDeleteLiveCallbackTemplate:
+		resp, err = h.handleDeleteLiveCallbackTemplate(q)
+
 	default:
 		err = util.ErrNotSupportedAPI
 	}

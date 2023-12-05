@@ -579,6 +579,8 @@ type CallBackTemplateInfo struct {
 	// 录制回调 URL。
 	RecordNotifyUrl *string `json:"RecordNotifyUrl,omitempty" name:"RecordNotifyUrl"`
 
+	RecordStatusNotifyUrl *string `json:"RecordStatusNotifyUrl,omitempty" name:"RecordNotifyUrl"`
+
 	// 截图回调 URL。
 	SnapshotNotifyUrl *string `json:"SnapshotNotifyUrl,omitempty" name:"SnapshotNotifyUrl"`
 
@@ -1091,6 +1093,8 @@ type CreateLiveCallbackTemplateRequestParams struct {
 	// 录制回调 URL，
 	// 相关协议文档：[事件消息通知](/document/product/267/32744)。
 	RecordNotifyUrl *string `json:"RecordNotifyUrl,omitempty" name:"RecordNotifyUrl"`
+
+	RecordStatusNotifyUrl *string `json:"RecordStatusNotifyUrl,omitempty" name:"RecordNotifyUrl"`
 
 	// 截图回调 URL，
 	// 相关协议文档：[事件消息通知](/document/product/267/32744)。

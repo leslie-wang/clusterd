@@ -28,16 +28,16 @@ func (h *Handler) handleDeleteLiveRecordRule(q url.Values) (*model.DeleteLiveRec
 		return nil, errors.New(model.INVALIDPARAMETERVALUE)
 	}
 
-	appNames, ok := q[AppName]
-	if !ok || len(appNames) == 0 {
+	appName := q.Get(AppName)
+	if appName == "" {
 		return nil, errors.New(model.INVALIDPARAMETERVALUE)
 	}
 
-	streamNames, ok := q[StreamName]
-	if !ok || len(streamNames) == 0 {
+	streamName := q.Get(StreamName)
+	if streamName == "" {
 		return nil, errors.New(model.INVALIDPARAMETERVALUE)
 	}
-	err := h.recordDB.RemoveRecordRuleByDomainAppStream(domainName, appNames[0], streamNames[0])
+	err := h.recordDB.RemoveRecordRuleByDomainAppStream(domainName, appName, streamName)
 	if err != nil {
 		return nil, err
 	}

@@ -43,23 +43,6 @@ func (h *Handler) handleGetLiveRecordTemplate(q url.Values) (*model.DescribeLive
 	}, nil
 }
 
-func (h *Handler) handleDeleteLiveRecordTemplate(q url.Values) (*model.DeleteLiveRecordTemplateResponse, error) {
-	val := q.Get(TemplateID)
-	if val == "" {
-		return nil, errors.New(model.INVALIDPARAMETERVALUE)
-	}
-
-	id, err := strconv.ParseInt(val, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	err = h.recordDB.RemoveRecordTemplate(id)
-	if err != nil {
-		return nil, err
-	}
-	return &model.DeleteLiveRecordTemplateResponse{Response: &model.DeleteLiveRecordTemplateResponseParams{}}, nil
-}
-
 func (h *Handler) handleListLiveRecordTemplates() (*model.DescribeLiveRecordTemplatesResponse, error) {
 	list, err := h.recordDB.ListRecordTemplates(context.Background())
 	if err != nil {
@@ -88,6 +71,23 @@ func (h *Handler) handleListLiveRecordTemplates() (*model.DescribeLiveRecordTemp
 		})
 	}
 	return resp, nil
+}
+
+func (h *Handler) handleDeleteLiveRecordTemplate(q url.Values) (*model.DeleteLiveRecordTemplateResponse, error) {
+	val := q.Get(TemplateID)
+	if val == "" {
+		return nil, errors.New(model.INVALIDPARAMETERVALUE)
+	}
+
+	id, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	err = h.recordDB.RemoveRecordTemplate(id)
+	if err != nil {
+		return nil, err
+	}
+	return &model.DeleteLiveRecordTemplateResponse{Response: &model.DeleteLiveRecordTemplateResponseParams{}}, nil
 }
 
 func (h *Handler) handleCreateLiveRecordTemplate(q url.Values) (*model.CreateLiveRecordTemplateResponse, error) {
