@@ -2,9 +2,9 @@ package manager
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/url"
 	"strconv"
 	"time"
@@ -53,14 +53,26 @@ func (h *Handler) handleDeleteRecordTask(q url.Values) (*model.DeleteLiveRecordR
 	return &model.DeleteLiveRecordRuleResponse{Response: &model.DeleteLiveRecordRuleResponseParams{}}, tx.Commit()
 }
 
-func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskResponse, error) {
-	r, err := h.parseRecordTask(q)
-	if err != nil {
-		return nil, err
-	}
+func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*model.CreateRecordTaskResponse, error) {
+	defer request.Close()
 
-	if r.EndTime == nil {
-		return nil, errors.New("EndTime can not be empty")
+	var err error
+	task := &types.LiveRecordTask{}
+	if h.cfg.ParamQuery {
+		r, err := h.parseRecordTask(q)
+		if err != nil {
+			return nil, err
+		}
+		if r.EndTime == nil {
+			return nil, errors.New("EndTime can not be empty")
+		}
+
+		task.CreateRecordTaskRequestParams = r
+	} else {
+		err = json.NewDecoder(request).Decode(task)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	tx, err := h.newTx()
@@ -69,22 +81,22 @@ func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskR
 	}
 	defer tx.Rollback()
 
-	id, err := h.recordDB.InsertRecordTask(tx, r)
+	id, err := h.recordDB.InsertRecordTask(tx, task)
 	if err != nil {
 		return nil, err
 	}
 
-	if r.DomainName == nil {
+	if task.DomainName == nil {
 		return nil, errors.New("DomainName can not be empty")
 	}
-	sourceURL, err := base64.StdEncoding.DecodeString(*r.DomainName)
 	if err != nil {
 		return nil, err
 	}
 	record := &types.JobRecord{
-		SourceURL: string(sourceURL),
-		StartTime: r.StartTime,
-		EndTime:   r.EndTime,
+		SourceURL: task.SourceURL,
+		StorePath: task.StorePath,
+		StartTime: task.StartTime,
+		EndTime:   task.EndTime,
 	}
 	content, err := json.Marshal(record)
 	if err != nil {
@@ -98,10 +110,10 @@ func (h *Handler) handleCreateRecordTask(q url.Values) (*model.CreateRecordTaskR
 	}
 
 	var st time.Time
-	if r.StartTime == nil {
+	if task.StartTime == nil {
 		st = time.Now()
 	} else {
-		st = time.Unix(int64(*r.StartTime), 0)
+		st = time.Unix(int64(*task.StartTime), 0)
 	}
 	job.ScheduleTime = &st
 

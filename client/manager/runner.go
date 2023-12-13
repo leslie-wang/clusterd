@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -40,37 +39,6 @@ func (c *Client) AcquireJob(name string) (*types.Job, error) {
 
 	job := &types.Job{}
 	return job, json.Unmarshal(content, job)
-}
-
-func (c *Client) ReportJob(id, exitCode int) error {
-	url := c.makeURL(types.URLJob, strconv.Itoa(id))
-
-	report := types.JobResult{
-		ID:       id,
-		ExitCode: exitCode,
-	}
-	content, err := json.Marshal(report)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(content))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return util.MakeStatusError(resp.Body)
-	}
-
-	return nil
 }
 
 func (c *Client) ListRunners() (map[string]types.Job, error) {

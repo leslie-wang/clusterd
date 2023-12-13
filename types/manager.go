@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	ClusterDBName = "clusterd"
-	ManagerPort   = 8088
-	RunnerPort    = 8089
+	ClusterDBName  = "clusterd"
+	ManagerPort    = 8088
+	RunnerPort     = 8089
+	UtilListenPort = 8090
 )
 
 const (
@@ -57,15 +58,25 @@ type Job struct {
 
 type JobRecord struct {
 	SourceURL string
+	StorePath string
 	StartTime *uint64
 	EndTime   *uint64
 }
 
-type JobResult struct {
-	ID       int    `json:"id"`
-	ExitCode int    `json:"exit_code"`
-	Stdout   string `json:"stdout"`
-	Stderr   string `json:"stderr"`
+type JobStatusType int
+
+const (
+	RecordJobStart JobStatusType = iota
+	RecordJobEnd
+	RecordJobException
+)
+
+type JobStatus struct {
+	ID       int           `json:"id"`
+	Type     JobStatusType `json:"type"`
+	ExitCode int           `json:"exit_code"`
+	Stdout   string        `json:"stdout"`
+	Stderr   string        `json:"stderr"`
 }
 
 type LiveRecordRule struct {
@@ -83,6 +94,8 @@ type LiveRecordTemplate struct {
 type LiveRecordTask struct {
 	*model.CreateRecordTaskRequestParams
 	ID         int64     `json:"ID"`
+	SourceURL  string    `json:"source_url"`
+	StorePath  string    `json:"store_path"`
 	CreateTime time.Time `json:"CreateTime"`
 }
 
@@ -93,4 +106,117 @@ type Config struct {
 	DBPass string // Password (requires User)
 	Addr   string // Network address (requires Net)
 	DBName string // Database name
+}
+
+type LiveCallbackEventType int
+
+const (
+	LiveCallbackEventTypePushStart    LiveCallbackEventType = 1
+	LiveCallbackEventTypePushStop     LiveCallbackEventType = 0
+	LiveCallbackEventTypeRecordFile   LiveCallbackEventType = 100
+	LiveCallbackEventTypeException    LiveCallbackEventType = 321
+	LiveCallbackEventTypeRecordStatus LiveCallbackEventType = 332
+)
+
+type LiveCallbackStreamEvent struct {
+	EventType LiveCallbackEventType `json:"event_type"`
+
+	Sign string `json:"sign"`
+	T    int64  `json:"t"`
+
+	AppID        int    `json:"appid"`
+	App          string `json:"app"`
+	AppName      string `json:"appname"`
+	StreamID     string `json:"stream_id"`
+	ChannelID    string `json:"channel_id"`
+	EventTime    int64  `json:"event_time"`
+	Sequence     string `json:"sequence"`
+	Node         string `json:"node"`
+	UserID       string `json:"user_ip"`
+	StreamParam  string `json:"stream_param"`
+	PushDuration string `json:"push_duration"`
+	ErrCode      int    `json:"errcode"`
+	ErrMsg       string `json:"errmsg"`
+	SetID        int    `json:"set_id"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
+}
+
+type LiveCallbackAbnormalDetail struct {
+	Desc      string `json:"desc"`
+	OccurTime string `json:"occur_time"`
+}
+
+type LiveCallbackAbnormalEvent struct {
+	Type   int                          `json:"type"`
+	Count  int                          `json:"count"`
+	Detail []LiveCallbackAbnormalDetail `json:"detail"`
+	DescCN string                       `json:"type_desc_cn"`
+	DescEN string                       `json:"type_desc_en"`
+}
+
+type LiveCallbackStreamExceptionEvent struct {
+	EventType LiveCallbackEventType `json:"event_type"`
+
+	AppID          int                         `json:"appid"`
+	StreamID       string                      `json:"stream_id"`
+	DataTime       int                         `json:"data_time"`
+	ReportInterval int                         `json:"report_interval"`
+	AbnormalEvent  []LiveCallbackAbnormalEvent `json:"abnormal_event"`
+}
+
+type LiveCallbackRecordFileEvent struct {
+	EventType LiveCallbackEventType `json:"event_type"`
+
+	Sign string `json:"sign"`
+	T    int64  `json:"t"`
+
+	AppID          int    `json:"appid"`
+	App            string `json:"app"`
+	AppName        string `json:"appname"`
+	StreamID       string `json:"stream_id"`
+	ChannelID      string `json:"channel_id"`
+	FileID         string `json:"file_id"`
+	RecordFileID   string `json:"record_file_id"`
+	FileFormat     string `json:"file_format"`
+	TaskID         string `json:"task_id"`
+	StartTime      int64  `json:"start_time"`
+	EndTime        int64  `json:"end_time"`
+	StartTimeUsec  int    `json:"start_time_usec"`
+	EndTimeUsec    int    `json:"end_time_usec"`
+	Duration       int64  `json:"duration"`
+	FileSize       uint64 `json:"file_size"`
+	StreamParam    string `json:"stream_param"`
+	VideoURL       string `json:"video_url"`
+	MediaStartTime int64  `json:"media_start_time"`
+	RecordBps      int    `json:"record_bps"`
+	CallbackExt    string `json:"callback_ext"`
+}
+
+type LiveRecordStatusEvent string
+
+const (
+	LiveRecordStatusStartSucceeded = "record_start_succeeded"
+	LiveRecordStatusStartFailed    = "record_start_failed"
+	LiveRecordStatusPaused         = "record_paused"
+	LiveRecordStatusResumed        = "record_resumed"
+	LiveRecordStatusError          = "record_error"
+	LiveRecordStatusEnded          = "record_ended"
+)
+
+type LiveCallbackRecordStatusEvent struct {
+	EventType LiveCallbackEventType `json:"event_type"`
+
+	Sign string `json:"sign"`
+	T    int64  `json:"t"`
+
+	AppID        int                   `json:"appid"`
+	AppName      string                `json:"appname"`
+	Domain       string                `json:"domain"`
+	EventTime    int64                 `json:"event_time"`
+	RecordDetail string                `json:"record_detail"`
+	RecordEvent  LiveRecordStatusEvent `json:"record_event"`
+	Sequence     string                `json:"seq"`
+	SessionID    string                `json:"session_id"`
+	StreamID     string                `json:"stream_id"`
 }

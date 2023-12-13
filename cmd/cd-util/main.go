@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"text/tabwriter"
 	"time"
 
@@ -37,6 +38,82 @@ func main() {
 			Value: types.RunnerPort,
 		},
 	}
+	callbackTemplateCommands := cli.Command{
+		Name:   "template",
+		Usage:  "callback template related",
+		Action: listCallbackTemplates,
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "output, o",
+				Usage: "output file which saves job info",
+			},
+		},
+		Subcommands: []cli.Command{
+			{
+				Name:      "create",
+				Usage:     "create callback template",
+				Action:    createCallBackTemplate,
+				ArgsUsage: "[Name]",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "StreamBeginNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/begin",
+					},
+					cli.StringFlag{
+						Name:  "StreamEndNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/end",
+					},
+					cli.StringFlag{
+						Name:  "RecordNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/record",
+					},
+					cli.StringFlag{
+						Name:  "RecordStatusNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/record-status",
+					},
+					cli.StringFlag{
+						Name:  "SnapshotNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/snapshot",
+					},
+					cli.StringFlag{
+						Name:  "PornCensorshipNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/porn",
+					},
+					cli.StringFlag{
+						Name:  "PushExceptionNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/push-exception",
+					},
+					cli.StringFlag{
+						Name:  "AudioAuditNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/audio-audit",
+					},
+					cli.StringFlag{
+						Name:  "StreamMixNotifyUrl",
+						Value: "localhost:" + strconv.Itoa(types.UtilListenPort) + "/stream-mix",
+					},
+				},
+			},
+		},
+	}
+	callbackRuleCommands := cli.Command{
+		Name:   "rule",
+		Usage:  "callback rule related",
+		Action: listCallbackRules,
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "output, o",
+				Usage: "output file which saves job info",
+			},
+		},
+		Subcommands: []cli.Command{
+			{
+				Name:      "create",
+				Usage:     "create callback rule",
+				Action:    createCallBackRule,
+				ArgsUsage: "[Template ID] [Domain name] [App name]",
+			},
+		},
+	}
 	app.Commands = []cli.Command{
 		{
 			Name:    "record",
@@ -49,6 +126,21 @@ func main() {
 						" [record URL] [[start time]] [duration]",
 					Action: createRecordTask,
 					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "domain, d",
+							Usage: "domain name of the recording",
+							Value: "test.play.com",
+						},
+						cli.StringFlag{
+							Name:  "app, a",
+							Usage: "app name of the recording",
+							Value: "live",
+						},
+						cli.StringFlag{
+							Name:  "stream, s",
+							Usage: "trea  name of the recording",
+							Value: "livetest",
+						},
 						cli.UintFlag{
 							Name: "retry-count",
 						},
@@ -67,6 +159,13 @@ func main() {
 					Usage:     "cancel one recording",
 					ArgsUsage: "[job ID]",
 					Action:    cancelRecordTask,
+				},
+				{
+					Name:    "callback",
+					Aliases: []string{"cb"},
+					Usage: "create record task. if start time is not provided, record will start in 5 second." +
+						" [record URL] [[start time]] [duration]",
+					Subcommands: []cli.Command{callbackTemplateCommands, callbackRuleCommands},
 				},
 			},
 		},
@@ -120,6 +219,52 @@ func main() {
 						cli.StringFlag{
 							Name:  "output, o",
 							Usage: "output file which saves job info",
+						},
+					},
+				},
+				{
+					Name:  "report",
+					Usage: "report job status",
+					Subcommands: []cli.Command{
+						{
+							Name:      "record-start, rs",
+							Aliases:   []string{"rs"},
+							Usage:     "report recording start",
+							ArgsUsage: "[job ID]",
+							Action:    reportRecordStart,
+						},
+						{
+							Name:      "record-end, re",
+							Aliases:   []string{"re"},
+							Usage:     "report recording end successfully",
+							ArgsUsage: "[job ID]",
+							Action:    reportRecordEnd,
+						},
+						{
+							Name:      "record-fail, rf",
+							Aliases:   []string{"rf"},
+							Usage:     "report recording fail with failure reason",
+							ArgsUsage: "[job ID] [exit code] [failure log]",
+							Action:    reportRecordFail,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:    "util",
+			Aliases: []string{"u"},
+			Subcommands: []cli.Command{
+				{
+					Name:    "listen",
+					Aliases: []string{"l"},
+					Usage:   "listen at given port",
+					Action:  listen,
+					Flags: []cli.Flag{
+						cli.UintFlag{
+							Name:  "port, p",
+							Usage: "manager listen port",
+							Value: types.UtilListenPort,
 						},
 					},
 				},

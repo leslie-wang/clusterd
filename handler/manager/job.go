@@ -2,6 +2,7 @@ package manager
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -27,22 +28,65 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		util.WriteError(w, err)
 		return
 	}
-
-	job := &types.JobResult{}
-	err = json.NewDecoder(r.Body).Decode(job)
 	if err != nil {
 		util.WriteError(w, err)
 		return
 	}
 
-	err = h.jobDB.CompleteAndArchive(int64(jobID), &job.ExitCode)
+	job, err := h.jobDB.Get(jobID)
 	if err != nil {
 		util.WriteError(w, err)
 		return
 	}
 
-	// TODO: save stdout and stderr
-	util.WriteBody(w, job)
+	cb, err := h.recordDB.GetCallbackRuleByRecordTaskID(job.RefID)
+	if err != nil {
+		log.Printf("WARN: retrieve job %d's callback info: %s", jobID, err)
+	}
+
+	status := &types.JobStatus{}
+	err = json.NewDecoder(r.Body).Decode(status)
+	if err != nil {
+		util.WriteError(w, err)
+		return
+	}
+
+	switch status.Type {
+	case types.RecordJobStart:
+		if cb != nil && cb.RecordStatusNotifyUrl != nil {
+			go notify(*cb.RecordStatusNotifyUrl, &types.LiveCallbackRecordStatusEvent{
+				RecordEvent: types.LiveRecordStatusStartSucceeded,
+			})
+		}
+	case types.RecordJobEnd:
+		if cb != nil && cb.RecordStatusNotifyUrl != nil {
+			go notify(*cb.RecordStatusNotifyUrl, &types.LiveCallbackRecordStatusEvent{
+				RecordEvent: types.LiveRecordStatusEnded,
+			})
+		}
+		err = h.jobDB.CompleteAndArchive(int64(jobID), &status.ExitCode)
+		if err != nil {
+			util.WriteError(w, err)
+			return
+		}
+
+		// TODO: save stdout and stderr
+		util.WriteBody(w, status)
+	case types.RecordJobException:
+		if cb != nil && cb.RecordStatusNotifyUrl != nil {
+			go notify(*cb.RecordStatusNotifyUrl, &types.LiveCallbackRecordStatusEvent{
+				RecordEvent: types.LiveRecordStatusError,
+			})
+		}
+		err = h.jobDB.CompleteAndArchive(int64(jobID), &status.ExitCode)
+		if err != nil {
+			util.WriteError(w, err)
+			return
+		}
+
+		// TODO: save stdout and stderr
+		util.WriteBody(w, status)
+	}
 }
 
 func (h *Handler) getJob(w http.ResponseWriter, r *http.Request) {

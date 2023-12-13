@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS record_tasks (
     app_name VARCHAR(1024) NOT NULL,
     stream_name VARCHAR(1024) NOT NULL,
     stream_type INT,
+    source_url VARCHAR(1024),
+    store_path VARCHAR(1024),
     create_time TIMESTAMP NOT NULL,
     start_time TIMESTAMP,
     end_time TIMESTAMP NOT NULL

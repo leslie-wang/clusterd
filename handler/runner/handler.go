@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -23,8 +24,9 @@ import (
 )
 
 const (
-	recordFilename = "index.m3u8"
-	logFilename    = "ffmpeg.log"
+	recordFilename    = "index.m3u8"
+	logStdoutFilename = "ffmpeg_out.log"
+	logStderrFilename = "ffmpeg_err.log"
 )
 
 // Config is configuration for the handler
@@ -44,13 +46,17 @@ type Handler struct {
 	runningJobID int
 	lock         *sync.Mutex
 
-	cli *manager.Client
+	reportChan chan types.JobStatus
+	cli        *manager.Client
 }
 
 // NewHandler create new instance of Handler struct
 func NewHandler(c Config) *Handler {
-	h := &Handler{c: c, lock: &sync.Mutex{}}
+	h := &Handler{c: c, lock: &sync.Mutex{}, reportChan: make(chan types.JobStatus)}
 	h.cli = manager.NewClient(c.MgrHost, c.MgrPort)
+
+	go h.reportLoop()
+
 	return h
 }
 
@@ -66,7 +72,7 @@ func (h *Handler) jobLog(w http.ResponseWriter, r *http.Request) {
 	jobID := mux.Vars(r)[types.ID]
 
 	dir := filepath.Join(h.c.Workdir, jobID)
-	f, err := os.Open(filepath.Join(dir, logFilename))
+	f, err := os.Open(filepath.Join(dir, logStdoutFilename))
 	if err != nil {
 		if os.IsNotExist(err) {
 			util.WriteError(w, util.ErrNotExist)
@@ -109,20 +115,25 @@ func (h *Handler) Run(ctx context.Context) error {
 			h.lock.Lock()
 			h.runningJobID = job.ID
 			h.lock.Unlock()
-			exitCode, err := h.runJob(ctx, job)
+			status, err := h.runJob(ctx, job)
 			if err != nil {
 				log.Printf("Handle job %+v: %v", job, err)
+			}
+			if status == nil {
+				goto wait
 			}
 			h.lock.Lock()
 			h.runningJobID = 0
 			h.lock.Unlock()
-			err = h.cli.ReportJob(job.ID, exitCode)
+			err = h.cli.ReportJobStatus(status)
 			if err != nil {
 				log.Printf("Report job %+v: %v", job, err)
 			}
 		} else {
 			log.Printf("No jobs, sleep %s", h.c.Interval)
 		}
+
+	wait:
 		after := time.After(h.c.Interval)
 		select {
 		case <-after:
@@ -132,7 +143,7 @@ func (h *Handler) Run(ctx context.Context) error {
 	}
 }
 
-func (h *Handler) runJob(ctx context.Context, j *types.Job) (int, error) {
+func (h *Handler) runJob(ctx context.Context, j *types.Job) (*types.JobStatus, error) {
 	if j.Category == types.CategoryRecord {
 		runCtx, cancel := context.WithCancel(ctx)
 		go func() {
@@ -157,14 +168,18 @@ func (h *Handler) runJob(ctx context.Context, j *types.Job) (int, error) {
 		}()
 		return h.runRecordJob(runCtx, j)
 	}
-	return -1, fmt.Errorf("unknown job category: %v", j)
+	return nil, fmt.Errorf("unknown job category: %v", j)
 }
 
-func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
+func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobStatus, error) {
 	r := &types.JobRecord{}
 	err := json.Unmarshal([]byte(j.Metadata), r)
 	if err != nil {
-		return -1, err
+		return &types.JobStatus{
+			ID:       j.ID,
+			ExitCode: -1,
+			Stdout:   err.Error(),
+		}, err
 	}
 
 	// sleep until start time
@@ -172,7 +187,12 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 	if r.StartTime != nil {
 		startTime := time.Unix(int64(*r.StartTime), 0)
 		if startTime.Before(time.Now()) {
-			return -1, fmt.Errorf("start time (%s) is earlier than now (%s)", startTime, time.Now())
+			msg := fmt.Sprintf("start time (%s) is earlier than now (%s)", startTime, time.Now())
+			return &types.JobStatus{
+				ID:       j.ID,
+				ExitCode: -1,
+				Stdout:   msg,
+			}, errors.New(msg)
 		}
 		time.Sleep(time.Until(startTime))
 		duration = time.Duration(*r.EndTime-*r.StartTime) * time.Second
@@ -180,13 +200,19 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 		duration = time.Until(time.Unix(int64(*r.EndTime), 0))
 	}
 
+	go h.addReport(types.JobStatus{ID: j.ID, Type: types.RecordJobStart})
+
 	runCtx, cancel := context.WithTimeout(ctx, duration)
 	defer cancel()
 
 	dir := filepath.Join(h.c.Workdir, strconv.Itoa(j.ID))
 	err = os.MkdirAll(dir, 0777)
 	if err != nil {
-		return -1, err
+		return &types.JobStatus{
+			ID:       j.ID,
+			ExitCode: -1,
+			Stdout:   err.Error(),
+		}, err
 	}
 	mediaFile := filepath.Join(dir, recordFilename)
 	args := []string{"-i", r.SourceURL, "-c", "copy", "-hls_time", "10",
@@ -195,16 +221,32 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
 	cmd.Dir = dir
 
-	logFile, err := os.Create(filepath.Join(dir, logFilename))
+	logoutFilename := filepath.Join(dir, logStdoutFilename)
+	logoutFile, err := os.Create(logoutFilename)
 	if err != nil {
-		return -1, err
+		return &types.JobStatus{
+			ID:       j.ID,
+			ExitCode: -1,
+			Stdout:   err.Error(),
+		}, err
 	}
-	defer logFile.Close()
+	defer logoutFile.Close()
+
+	logerrFilename := filepath.Join(dir, logStderrFilename)
+	logerrFile, err := os.Create(logerrFilename)
+	if err != nil {
+		return &types.JobStatus{
+			ID:       j.ID,
+			ExitCode: -1,
+			Stdout:   err.Error(),
+		}, err
+	}
+	defer logerrFile.Close()
 
 	errChan := make(chan error)
 	go func() {
-		cmd.Stdout = logFile
-		cmd.Stderr = logFile
+		cmd.Stdout = logoutFile
+		cmd.Stderr = logerrFile
 
 		err = cmd.Run()
 		if err != nil {
@@ -225,5 +267,24 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (int, error) {
 		}
 	}
 
-	return cmd.ProcessState.ExitCode(), err
+	exitCode := cmd.ProcessState.ExitCode()
+	if err == nil && exitCode == 0 {
+		return &types.JobStatus{ID: j.ID, Type: types.RecordJobEnd}, nil
+	}
+	sout, err := os.ReadFile(logoutFilename)
+	if err != nil {
+		log.Printf("WARN: read stdout log file %s: %s", logoutFilename, err)
+	}
+	serr, err := os.ReadFile(logerrFilename)
+	if err != nil {
+		log.Printf("WARN: read stderr log file %s: %s", logerrFilename, err)
+	}
+
+	return &types.JobStatus{
+		ID:       j.ID,
+		Type:     types.RecordJobException,
+		ExitCode: exitCode,
+		Stdout:   string(sout),
+		Stderr:   string(serr),
+	}, nil
 }

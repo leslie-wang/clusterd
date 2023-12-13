@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -70,4 +71,29 @@ func (c *Client) GetJob(jobID int) (*types.Job, error) {
 
 	job := &types.Job{}
 	return job, json.NewDecoder(resp.Body).Decode(job)
+}
+
+func (c *Client) ReportJobStatus(status *types.JobStatus) error {
+	content, err := json.Marshal(status)
+	if err != nil {
+		return err
+	}
+	url := c.makeURL(types.URLJob, strconv.Itoa(status.ID))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(content))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return util.MakeStatusError(resp.Body)
+	}
+
+	return nil
 }

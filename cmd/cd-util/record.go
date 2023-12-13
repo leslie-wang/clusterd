@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -15,25 +14,22 @@ import (
 
 func createRecordTask(ctx *cli.Context) error {
 	var (
-		recordURL  string
-		start, end *int64
+		start, end *uint64
 	)
 	switch len(ctx.Args()) {
 	case 2:
-		recordURL = base64.StdEncoding.EncodeToString([]byte(ctx.Args()[0]))
 		duration, err := time.ParseDuration(ctx.Args()[1])
 		if err != nil {
 			return err
 		}
 		startTime := time.Now().Add(5 * time.Second)
-		st := startTime.Unix()
+		st := uint64(startTime.Unix())
 		start = &st
 
-		et := startTime.Add(duration).Unix()
+		et := uint64(startTime.Add(duration).Unix())
 		end = &et
 	case 3:
-		recordURL = base64.StdEncoding.EncodeToString([]byte(ctx.Args()[0]))
-		st, err := strconv.ParseInt(ctx.Args()[1], 10, 64)
+		st, err := strconv.ParseUint(ctx.Args()[1], 10, 64)
 		if err != nil {
 			return err
 		}
@@ -44,7 +40,7 @@ func createRecordTask(ctx *cli.Context) error {
 			return err
 		}
 
-		et := st + int64(duration.Seconds())
+		et := st + uint64(duration.Seconds())
 		end = &et
 	default:
 		return errors.New("wrong number of arguments. it should be [record URL] [[start time] [end time]]")
@@ -54,7 +50,13 @@ func createRecordTask(ctx *cli.Context) error {
 	outputFilename := ctx.String("output")
 	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
 	for {
-		id, err := mc.CreateRecordTask(recordURL, start, end)
+		id, err := mc.CreateRecordTask(ctx.String("domain"),
+			ctx.String("app"),
+			ctx.String("stream"),
+			ctx.Args()[0],
+			start,
+			end,
+		)
 		if err == nil {
 			fmt.Printf("Created recording task: %s\n", *id)
 			if outputFilename == "" {
