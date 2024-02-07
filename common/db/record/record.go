@@ -48,9 +48,9 @@ const (
 	getCallbackRuleByDomainAndApp       = "select name, description, callback_key, begin_url, end_url, record_url," +
 		" record_status_url, porn_censorship_url, stream_mix_url, push_exception_url, audio_audit_url, snapshot_url" +
 		" from record_cb_templates inner join record_cb_rules as r where r.domain_name=? and r.app_name=?"
-	getCallbackRuleByRecordTaskID = "select name, description, callback_key, begin_url, end_url, record_url," +
+	getCallbackRuleByRecordTaskID = "select cb.id, name, description, callback_key, begin_url, end_url, record_url," +
 		" record_status_url, porn_censorship_url, stream_mix_url, push_exception_url, audio_audit_url, snapshot_url" +
-		" from record_cb_templates inner join record_cb_rules as r inner join record_tasks as rt" +
+		" from record_cb_templates as cb inner join record_cb_rules as r inner join record_tasks as rt" +
 		" on r.domain_name=rt.domain_name and r.app_name=rt.app_name" +
 		" where rt.id=?"
 )
@@ -212,7 +212,7 @@ func (r *DB) RemoveRecordRuleByDomainAppStream(domain, app, stream string) error
 	return err
 }
 
-func (r *DB) InsertRecordTask(tx *sql.Tx, t *types.LiveRecordTask) (int64, error) {
+func (r *DB) InsertRecordTask(tx *sql.Tx, t *model.CreateRecordTaskRequestParams) (int64, error) {
 	res, err := tx.Exec(insertRecordTask, t.TemplateId, t.DomainName, t.AppName, t.StreamName, t.StreamType, t.StartTime, t.EndTime)
 	if err != nil {
 		return 0, err

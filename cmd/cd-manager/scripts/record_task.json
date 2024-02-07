@@ -1,7 +1,9 @@
 {
+  "TemplateId": 1,
   "DomainName": "test.play.com",
   "AppName": "live",
   "StreamName": "livetest",
   "SourceURL": "http://localhost:8000/test.mp4",
+    "StorePath" :"/tmp/record1",
   "EndTime": 1589904000
 }

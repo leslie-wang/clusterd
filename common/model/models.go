@@ -3288,6 +3288,10 @@ type CreateRecordTaskRequestParams struct {
 
 	// 扩展字段，暂无定义。默认为空。
 	Extension *string `json:"Extension,omitempty" name:"Extension"`
+
+	// video solar definition
+	SourceURL *string `json:"SourceURL,omitempty" name:"SourceURL"`
+	StorePath *string `json:"StorePath,omitempty" name:"StorePath"`
 }
 
 type CreateRecordTaskRequest struct {

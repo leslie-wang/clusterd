@@ -1,5 +1,5 @@
 {
-  "RecordStatusNotifyUrl": "localhost:8090",
+  "RecordStatusNotifyUrl": "http://localhost:8090",
   "StreamBeginNotifyUrl": null,
   "StreamEndNotifyUrl": null,
   "TemplateName": "testName",
