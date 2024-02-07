@@ -57,18 +57,19 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 	defer request.Close()
 
 	var err error
-	var r *model.CreateRecordTaskRequestParams
+	task := &types.LiveRecordTask{}
 	if h.cfg.ParamQuery {
-		r, err = h.parseRecordTask(q)
+		r, err := h.parseRecordTask(q)
 		if err != nil {
 			return nil, err
 		}
 		if r.EndTime == nil {
 			return nil, errors.New("EndTime can not be empty")
 		}
+		task.CreateRecordTaskRequestParams = r
 	} else {
-		r = &model.CreateRecordTaskRequestParams{}
-		err = json.NewDecoder(request).Decode(r)
+		task.CreateRecordTaskRequestParams = &model.CreateRecordTaskRequestParams{}
+		err = json.NewDecoder(request).Decode(task)
 		if err != nil {
 			return nil, err
 		}
@@ -80,20 +81,20 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 	}
 	defer tx.Rollback()
 
-	if r.DomainName == nil {
+	if task.DomainName == nil {
 		return nil, errors.New("DomainName can not be empty")
 	}
 
-	id, err := h.recordDB.InsertRecordTask(tx, r)
+	id, err := h.recordDB.InsertRecordTask(tx, task)
 	if err != nil {
 		return nil, err
 	}
 
 	record := &types.JobRecord{
-		SourceURL: *r.SourceURL,
-		StorePath: *r.StorePath,
-		StartTime: r.StartTime,
-		EndTime:   r.EndTime,
+		SourceURL: task.SourceURL,
+		StorePath: task.StorePath,
+		StartTime: task.StartTime,
+		EndTime:   task.EndTime,
 	}
 	content, err := json.Marshal(record)
 	if err != nil {
@@ -107,10 +108,10 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 	}
 
 	var st time.Time
-	if r.StartTime == nil {
+	if task.StartTime == nil {
 		st = time.Now()
 	} else {
-		st = time.Unix(int64(*r.StartTime), 0)
+		st = time.Unix(int64(*task.StartTime), 0)
 	}
 	job.ScheduleTime = &st
 
