@@ -263,7 +263,7 @@ func main() {
 					Flags: []cli.Flag{
 						cli.UintFlag{
 							Name:  "port, p",
-							Usage: "manager listen port",
+							Usage: "listen port",
 							Value: types.UtilListenPort,
 						},
 					},

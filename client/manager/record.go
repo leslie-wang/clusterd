@@ -15,14 +15,13 @@ import (
 )
 
 func (c *Client) CreateRecordTask(domain, app, stream, url string, start, end *uint64) (*string, error) {
-	task := &types.LiveRecordTask{
-		SourceURL: url,
-	}
+	task := &types.LiveRecordTask{}
 	task.CreateRecordTaskRequestParams = &model.CreateRecordTaskRequestParams{
 		DomainName: &domain,
 		AppName:    &app,
 		StreamName: &stream,
 		StartTime:  start,
+		SourceURL:  &url,
 		EndTime:    end,
 	}
 	createRecordURL := c.makeURL(types.URLRecord)

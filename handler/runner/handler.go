@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -187,14 +186,10 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 	if r.StartTime != nil {
 		startTime := time.Unix(int64(*r.StartTime), 0)
 		if startTime.Before(time.Now()) {
-			msg := fmt.Sprintf("start time (%s) is earlier than now (%s)", startTime, time.Now())
-			return &types.JobStatus{
-				ID:       j.ID,
-				ExitCode: -1,
-				Stdout:   msg,
-			}, errors.New(msg)
+			log.Printf("start time (%s) is earlier than now (%s)", startTime, time.Now())
+		} else {
+			time.Sleep(time.Until(startTime))
 		}
-		time.Sleep(time.Until(startTime))
 		duration = time.Duration(*r.EndTime-*r.StartTime) * time.Second
 	} else {
 		duration = time.Until(time.Unix(int64(*r.EndTime), 0))

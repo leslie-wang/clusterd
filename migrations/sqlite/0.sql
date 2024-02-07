@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     metadata VARCHAR NOT NULL,
     runner VARCHAR(255),
     create_time TIMESTAMP NOT NULL,
-    schedule_time TIMESTAMP NOT NULL,
+    schedule_time TIMESTAMP,
     start_time TIMESTAMP,
     last_seen_time TIMESTAMP
 );
