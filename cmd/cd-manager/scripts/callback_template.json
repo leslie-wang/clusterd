@@ -1,0 +1,11 @@
+{
+  "RecordStatusNotifyUrl": "localhost:8090",
+  "StreamBeginNotifyUrl": null,
+  "StreamEndNotifyUrl": null,
+  "TemplateName": "testName",
+  "RecordNotifyUrl": null,
+  "SnapshotNotifyUrl": null,
+  "PornCensorshipNotifyUrl": null,
+  "CallbackKey": "",
+  "Description": "test"
+}

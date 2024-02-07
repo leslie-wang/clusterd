@@ -132,7 +132,7 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 	case ActionDescribeRecordTask:
 		resp, err = h.handleListRecordTasks()
 	case ActionCreateRecordTask:
-		resp, err = h.handleCreateRecordTask(q)
+		resp, err = h.handleCreateRecordTask(q, r.Body)
 	case ActionDeleteRecordTask:
 		resp, err = h.handleDeleteRecordTask(q)
 	case ActionStopRecordTask:
@@ -145,10 +145,10 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 		resp, err = h.handleDeleteLiveCallbackRule(q)
 
 	case ActionCreateLiveCallbackTemplate:
-		resp, err = h.handleCreateLiveCallbackTemplate(q)
-	case ActionDescribeLiveCallbackTemplate:
-		resp, err = h.handleDescribeLiveCallbackTemplates()
+		resp, err = h.handleCreateLiveCallbackTemplate(q, r.Body)
 	case ActionDescribeLiveCallbackTemplates:
+		resp, err = h.handleDescribeLiveCallbackTemplates()
+	case ActionDescribeLiveCallbackTemplate:
 		resp, err = h.handleDescribeLiveCallbackTemplate(q)
 	case ActionDeleteLiveCallbackTemplate:
 		resp, err = h.handleDeleteLiveCallbackTemplate(q)

@@ -1,0 +1,7 @@
+{
+  "DomainName": "test.play.com",
+  "AppName": "live",
+  "StreamName": "livetest",
+  "SourceURL": "http://localhost:8000/test.mp4",
+  "EndTime": 1589904000
+}

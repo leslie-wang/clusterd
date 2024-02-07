@@ -2,7 +2,9 @@ package manager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/url"
 	"strconv"
 
@@ -41,9 +43,7 @@ func (h *Handler) handleDescribeLiveCallbackTemplates() (*model.DescribeLiveCall
 			Templates: []*model.CallBackTemplateInfo{},
 		},
 	}
-	for _, item := range list {
-		resp.Response.Templates = append(resp.Response.Templates, &item)
-	}
+	resp.Response.Templates = list
 	return resp, nil
 }
 
@@ -64,10 +64,24 @@ func (h *Handler) handleDeleteLiveCallbackTemplate(q url.Values) (*model.DeleteL
 	return &model.DeleteLiveCallbackTemplateResponse{Response: &model.DeleteLiveCallbackTemplateResponseParams{}}, nil
 }
 
-func (h *Handler) handleCreateLiveCallbackTemplate(q url.Values) (*model.CreateLiveCallbackTemplateResponse, error) {
-	t, err := h.parseLiveCallbackTemplate(q)
-	if err != nil {
-		return nil, err
+func (h *Handler) handleCreateLiveCallbackTemplate(q url.Values, request io.ReadCloser) (*model.CreateLiveCallbackTemplateResponse, error) {
+	defer request.Close()
+
+	var (
+		t   *model.CreateLiveCallbackTemplateRequestParams
+		err error
+	)
+	if h.cfg.ParamQuery {
+		t, err = h.parseLiveCallbackTemplate(q)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		t = &model.CreateLiveCallbackTemplateRequestParams{}
+		err = json.NewDecoder(request).Decode(t)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	id, err := h.recordDB.InsertCallbackTemplate(t)

@@ -25,6 +25,7 @@ type Config struct {
 	DBUser           string
 	DBPass           string
 	DBName           string
+	ParamQuery       bool
 	ScheduleInterval time.Duration
 }
 

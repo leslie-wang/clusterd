@@ -124,3 +124,52 @@ func getJob(ctx *cli.Context) error {
 	}
 	return os.WriteFile(outputFilename, content, 0755)
 }
+
+func reportRecordStart(ctx *cli.Context) error {
+	if len(ctx.Args()) != 1 {
+		return errors.New("please provide one job ID")
+	}
+	id, err := strconv.Atoi(ctx.Args()[0])
+	if err != nil {
+		return errors.New("job ID must be integer, please provide a valid job ID")
+	}
+
+	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
+	return mc.ReportJobStatus(&types.JobStatus{ID: id, Type: types.RecordJobStart})
+}
+
+func reportRecordEnd(ctx *cli.Context) error {
+	if len(ctx.Args()) != 1 {
+		return errors.New("please provide one job ID")
+	}
+	id, err := strconv.Atoi(ctx.Args()[0])
+	if err != nil {
+		return errors.New("job ID must be integer, please provide a valid job ID")
+	}
+
+	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
+	return mc.ReportJobStatus(&types.JobStatus{ID: id, Type: types.RecordJobEnd})
+}
+
+func reportRecordFail(ctx *cli.Context) error {
+	if len(ctx.Args()) != 3 {
+		return errors.New("please provide job ID, exit code, failure log")
+	}
+	id, err := strconv.Atoi(ctx.Args()[0])
+	if err != nil {
+		return errors.New("job ID must be integer, please provide a valid job ID")
+	}
+
+	code, err := strconv.Atoi(ctx.Args()[1])
+	if err != nil {
+		return errors.New("exit code must be integer, please provide a valid exit code")
+	}
+
+	mc := manager.NewClient(ctx.GlobalString("mgr-host"), ctx.GlobalUint("mgr-port"))
+	return mc.ReportJobStatus(&types.JobStatus{
+		ID:       id,
+		Type:     types.RecordJobException,
+		ExitCode: code,
+		Stdout:   ctx.Args()[2],
+	})
+}
