@@ -14,7 +14,7 @@ const (
 	archiveJob = `insert into job_archives (id, ref_id, category, metadata, runner, exit_code, create_time, start_time, end_time) 
 					select id, ref_id, category, metadata, runner, ?, create_time, start_time, CURRENT_TIMESTAMP from jobs where id=?`
 	listJobs            = "select id, ref_id, category, metadata, runner, create_time, schedule_time, start_time, last_seen_time from jobs"
-	getNotStartedJob    = "select id, category, metadata, schedule_time from jobs where start_time is null and schedule_time < ? order by create_time limit 1"
+	getNotStartedJob    = "select id, category, metadata, schedule_time from jobs where start_time is null and (schedule_time is null or schedule_time < ?) order by create_time limit 1"
 	getNotFinishJobByID = "select ref_id, category, metadata, runner, create_time, start_time, schedule_time, last_seen_time from jobs where id=?"
 	getArchivedJobByID  = "select ref_id, category, metadata, runner, exit_code, create_time, start_time, end_time from job_archives where id=?"
 	updateJobForRunner  = "update jobs set runner=?, start_time=CURRENT_TIMESTAMP, last_seen_time=CURRENT_TIMESTAMP where id=?"
@@ -62,7 +62,12 @@ func (j *DB) Prepare() error {
 
 func (j *DB) Insert(tx *sql.Tx, job *types.Job) error {
 	// convert to utc time
-	res, err := tx.Exec(insertJob, job.RefID, job.Category, job.Metadata, job.ScheduleTime.UTC())
+	var st *time.Time
+	if job.ScheduleTime != nil {
+		t := job.ScheduleTime.UTC()
+		st = &t
+	}
+	res, err := tx.Exec(insertJob, job.RefID, job.Category, job.Metadata, st)
 	if err != nil {
 		return err
 	}

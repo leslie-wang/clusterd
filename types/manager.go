@@ -81,22 +81,20 @@ type JobStatus struct {
 
 type LiveRecordRule struct {
 	*model.CreateLiveRecordRuleRequestParams
-	ID         int64     `json:"ID"`
-	CreateTime time.Time `json:"CreateTime"`
+	ID         int64     `json:"id"`
+	CreateTime time.Time `json:"create_time"`
 }
 
 type LiveRecordTemplate struct {
 	*model.CreateLiveRecordTemplateRequestParams
-	ID         int64     `json:"ID"`
-	CreateTime time.Time `json:"CreateTime"`
+	ID         int64     `json:"id"`
+	CreateTime time.Time `json:"create_time"`
 }
 
 type LiveRecordTask struct {
 	*model.CreateRecordTaskRequestParams
-	ID         int64     `json:"ID"`
-	SourceURL  string    `json:"source_url"`
-	StorePath  string    `json:"store_path"`
-	CreateTime time.Time `json:"CreateTime"`
+	ID         int64     `json:"id"`
+	CreateTime time.Time `json:"create_time"`
 }
 
 // Config is configuration of DB
