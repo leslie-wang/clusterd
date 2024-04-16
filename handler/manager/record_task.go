@@ -79,11 +79,6 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 		return nil, errors.New("SourceURL can not be empty")
 	}
 
-	storePath := ""
-	if task.StorePath == nil {
-		storePath = "."
-	}
-
 	tx, err := h.newTx()
 	if err != nil {
 		return nil, err
@@ -101,7 +96,7 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 
 	record := &types.JobRecord{
 		SourceURL: *task.SourceURL,
-		StorePath: storePath,
+		StorePath: task.StorePath,
 		StartTime: task.StartTime,
 		EndTime:   task.EndTime,
 	}
