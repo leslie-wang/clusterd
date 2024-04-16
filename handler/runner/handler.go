@@ -24,8 +24,8 @@ import (
 
 const (
 	recordFilename    = "index.m3u8"
-	logStdoutFilename = "ffmpeg_out.log"
-	logStderrFilename = "ffmpeg_err.log"
+	logStdoutFilename = "record_out.log"
+	logStderrFilename = "record_err.log"
 )
 
 // Config is configuration for the handler
@@ -105,6 +105,7 @@ func (h *Handler) jobLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Run(ctx context.Context) error {
+	count := 0
 	for {
 		job, err := h.cli.AcquireJob(h.c.Name)
 		if err != nil {
@@ -129,7 +130,11 @@ func (h *Handler) Run(ctx context.Context) error {
 				log.Printf("Report job %+v: %v", job, err)
 			}
 		} else {
-			log.Printf("No jobs, sleep %s", h.c.Interval)
+			count++
+			if count > int(5*time.Minute/h.c.Interval) {
+				log.Printf("No jobs in 5 minutes, sleep")
+				count = 0
+			}
 		}
 
 	wait:
@@ -200,7 +205,11 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 	runCtx, cancel := context.WithTimeout(ctx, duration)
 	defer cancel()
 
-	dir := filepath.Join(h.c.Workdir, strconv.Itoa(j.ID))
+	storePath := r.StorePath
+	if storePath == "" {
+		storePath = h.c.Workdir
+	}
+	dir := filepath.Join(storePath, strconv.Itoa(j.ID))
 	err = os.MkdirAll(dir, 0777)
 	if err != nil {
 		return &types.JobStatus{
@@ -212,7 +221,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 	mediaFile := filepath.Join(dir, recordFilename)
 	args := []string{"-i", r.SourceURL, "-c", "copy", "-hls_time", "10",
 		"-hls_playlist_type", "vod", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", mediaFile}
-	fmt.Printf("---- ffmpeg %v\n", args)
+	fmt.Printf("record started: ffmpeg %v\n", args)
 	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
 	cmd.Dir = dir
 
@@ -245,7 +254,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 
 		err = cmd.Run()
 		if err != nil {
-			err = fmt.Errorf("%v: %s\n", args, err)
+			err = fmt.Errorf("%v: %s", args, err)
 		} else if cmd.ProcessState == nil {
 			err = fmt.Errorf("empty process state after run")
 		}
@@ -264,6 +273,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 
 	exitCode := cmd.ProcessState.ExitCode()
 	if err == nil && exitCode == 0 {
+		log.Printf("recording finished")
 		return &types.JobStatus{ID: j.ID, Type: types.RecordJobEnd}, nil
 	}
 	sout, err := os.ReadFile(logoutFilename)

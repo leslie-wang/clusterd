@@ -3291,7 +3291,7 @@ type CreateRecordTaskRequestParams struct {
 
 	// video solar definition
 	SourceURL *string `json:"SourceURL,omitempty" name:"SourceURL"`
-	StorePath *string `json:"StorePath,omitempty" name:"StorePath"`
+	StorePath string  `json:"StorePath,omitempty" name:"StorePath"`
 }
 
 type CreateRecordTaskRequest struct {
