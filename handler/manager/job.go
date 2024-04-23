@@ -51,19 +51,22 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	callbackURL := h.cfg.NotifyURL
+	if cb != nil && cb.RecordStatusNotifyUrl != nil {
+		callbackURL = *cb.RecordNotifyUrl
+	}
+
 	switch status.Type {
 	case types.RecordJobStart:
-		if cb != nil && cb.RecordStatusNotifyUrl != nil {
-			go notify(*cb.RecordStatusNotifyUrl, &types.LiveCallbackRecordStatusEvent{
-				RecordEvent: types.LiveRecordStatusStartSucceeded,
-			})
-		}
+		go notify(callbackURL, &types.LiveCallbackRecordStatusEvent{
+			SessionID:   strconv.Itoa(jobID),
+			RecordEvent: types.LiveRecordStatusStartSucceeded,
+		})
 	case types.RecordJobEnd:
-		if cb != nil && cb.RecordStatusNotifyUrl != nil {
-			go notify(*cb.RecordStatusNotifyUrl, &types.LiveCallbackRecordStatusEvent{
-				RecordEvent: types.LiveRecordStatusEnded,
-			})
-		}
+		go notify(callbackURL, &types.LiveCallbackRecordStatusEvent{
+			SessionID:   strconv.Itoa(jobID),
+			RecordEvent: types.LiveRecordStatusEnded,
+		})
 		err = h.jobDB.CompleteAndArchive(int64(jobID), &status.ExitCode)
 		if err != nil {
 			util.WriteError(w, err)
@@ -73,11 +76,10 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		// TODO: save stdout and stderr
 		util.WriteBody(w, status)
 	case types.RecordJobException:
-		if cb != nil && cb.RecordStatusNotifyUrl != nil {
-			go notify(*cb.RecordStatusNotifyUrl, &types.LiveCallbackRecordStatusEvent{
-				RecordEvent: types.LiveRecordStatusError,
-			})
-		}
+		go notify(callbackURL, &types.LiveCallbackRecordStatusEvent{
+			SessionID:   strconv.Itoa(jobID),
+			RecordEvent: types.LiveRecordStatusError,
+		})
 		err = h.jobDB.CompleteAndArchive(int64(jobID), &status.ExitCode)
 		if err != nil {
 			util.WriteError(w, err)
