@@ -27,6 +27,7 @@ type Config struct {
 	DBName           string
 	ParamQuery       bool
 	ScheduleInterval time.Duration
+	NotifyURL        string
 }
 
 // Handler is structure for recorder API

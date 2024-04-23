@@ -167,7 +167,12 @@ func (h *Handler) runJob(ctx context.Context, j *types.Job) (*types.JobStatus, e
 				}
 				return
 			sleep:
-				time.Sleep(5 * time.Second)
+				after := time.After(5 * time.Second)
+				select {
+				case <-after:
+				case <-runCtx.Done():
+					return
+				}
 			}
 		}()
 		return h.runRecordJob(runCtx, j)

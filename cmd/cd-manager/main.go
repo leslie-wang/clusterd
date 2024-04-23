@@ -59,6 +59,10 @@ func main() {
 			Usage: "interval for runner to get job",
 			Value: 10 * time.Second,
 		},
+		cli.StringFlag{
+			Name:  "notify-url",
+			Usage: "url to notify record status",
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -78,6 +82,7 @@ func serve(ctx *cli.Context) error {
 		DBPass:           ctx.String("db-pass"),
 		DBName:           ctx.String("db-name"),
 		ScheduleInterval: ctx.Duration("schedule-interval"),
+		NotifyURL:        ctx.String("notify-url"),
 	}
 	if parts[0] == db.MySQL {
 		cfg.Driver = db.MySQL
