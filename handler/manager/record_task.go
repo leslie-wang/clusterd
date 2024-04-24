@@ -96,6 +96,7 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 
 	record := &types.JobRecord{
 		SourceURL: *task.SourceURL,
+		NotifyURL: task.NotifyURL,
 		StorePath: task.StorePath,
 		StartTime: task.StartTime,
 		EndTime:   task.EndTime,

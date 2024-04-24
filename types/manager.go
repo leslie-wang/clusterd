@@ -57,6 +57,7 @@ type Job struct {
 }
 
 type JobRecord struct {
+	NotifyURL string
 	SourceURL string
 	StorePath string
 	StartTime *uint64
