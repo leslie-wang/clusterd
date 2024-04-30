@@ -25,12 +25,13 @@ const (
 	retryNotifyInterval = time.Minute
 )
 
-func notify(url string, event interface{}) {
+func notify(url string, sessionID string, event interface{}) {
 	content, err := json.Marshal(event)
 	if err != nil {
 		log.Printf("WARN: generate json while notifying %v: %s", event, err)
 		return
 	}
+	log.Printf("INFO: jobd %s notify %s: %s", sessionID, url, string(content))
 	buf := bytes.NewBuffer(content)
 	for i := 0; i < retryNotifyCount; i++ {
 		resp, err := http.Post(url, "application/json", buf)
