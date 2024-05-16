@@ -3356,6 +3356,8 @@ type CreateRecordTaskResponseParams struct {
 	// 任务ID，全局唯一标识录制任务。返回TaskId字段说明录制任务创建成功。
 	TaskId *string `json:"TaskId,omitempty" name:"TaskId"`
 
+	PlaybackURL *string `json:"PlaybackURL,omitempty" name:"PlaybackURL"`
+
 	// 唯一请求 ID，每次请求都会返回。定位问题时需要提供该次请求的 RequestId。
 	RequestId *string `json:"RequestId,omitempty" name:"RequestId"`
 }

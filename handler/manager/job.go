@@ -28,10 +28,6 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		util.WriteError(w, err)
 		return
 	}
-	if err != nil {
-		util.WriteError(w, err)
-		return
-	}
 
 	job, err := h.jobDB.Get(jobID)
 	if err != nil {

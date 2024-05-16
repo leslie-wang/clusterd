@@ -21,6 +21,7 @@ const (
 const (
 	BaseURL         = "/mediaproc/v1"
 	URLRecord       = BaseURL + "/record"
+	URLPlay         = BaseURL + "/play"
 	URLRunner       = "/cd/v1/runner"
 	URLRunnerLogJob = URLRunner + "/log/job/"
 

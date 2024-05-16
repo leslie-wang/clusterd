@@ -24,6 +24,11 @@ func main() {
 
 	app.Action = serve
 	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "ip",
+			Usage: "listen ip",
+			Value: "localhost",
+		},
 		cli.UintFlag{
 			Name:  "port, p",
 			Usage: "listen port",
@@ -63,6 +68,11 @@ func main() {
 			Name:  "notify-url",
 			Usage: "url to notify record status",
 		},
+		cli.StringFlag{
+			Name:  "media-dir, md",
+			Usage: "directory to store all recorded videos",
+			Value: "/mnt/media",
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -76,6 +86,8 @@ func serve(ctx *cli.Context) error {
 		return errors.New("db-host must be sqlite://<sqlite filename> or mysql://<mysql address>")
 	}
 
+	host := fmt.Sprintf(":%d", ctx.Uint("port"))
+
 	cfg := manager.Config{
 		DBAddress:        ctx.String("db-host"),
 		DBUser:           ctx.GlobalString("db-user"),
@@ -83,6 +95,8 @@ func serve(ctx *cli.Context) error {
 		DBName:           ctx.String("db-name"),
 		ScheduleInterval: ctx.Duration("schedule-interval"),
 		NotifyURL:        ctx.String("notify-url"),
+		BaseURL:          fmt.Sprintf("http://%s%s", ctx.String("ip"), host),
+		MediaDir:         ctx.String("media-dir"),
 	}
 	if parts[0] == db.MySQL {
 		cfg.Driver = db.MySQL
@@ -98,7 +112,6 @@ func serve(ctx *cli.Context) error {
 		return err
 	}
 
-	host := fmt.Sprintf(":%d", ctx.Uint("port"))
 	l, err := net.Listen("tcp", host)
 	if err != nil {
 		return err

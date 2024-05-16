@@ -28,6 +28,8 @@ type Config struct {
 	ParamQuery       bool
 	ScheduleInterval time.Duration
 	NotifyURL        string
+	BaseURL          string
+	MediaDir         string
 }
 
 // Handler is structure for recorder API
@@ -76,6 +78,9 @@ func (h *Handler) CreateRouter() *mux.Router {
 		h.r.HandleFunc(types.MkIDURLByBase(types.URLJobRunner), h.acquireJob).Methods(http.MethodPost)
 		h.r.HandleFunc(types.MkIDURLByBase(types.URLJob), h.reportJob).Methods(http.MethodPost)
 		h.r.HandleFunc(types.MkIDURLByBase(types.URLJob), h.getJob).Methods(http.MethodGet)
+
+		// playback
+		h.r.HandleFunc(types.MkIDURLByBase(types.URLPlay)+"/{filename}", h.playback).Methods(http.MethodGet)
 
 		h.r.Use(loggingMiddleware)
 	}
