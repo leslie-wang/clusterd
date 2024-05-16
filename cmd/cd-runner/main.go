@@ -48,7 +48,7 @@ func main() {
 			Value: types.RunnerPort,
 		},
 		cli.StringFlag{
-			Name:  "workdir, wd",
+			Name:  "media-dir, wd",
 			Usage: "local directory for recorded video",
 			Value: filepath.Join(wd, "runner"),
 		},
@@ -77,7 +77,7 @@ func serve(ctx *cli.Context) error {
 		MgrPort:  ctx.GlobalUint("mgr-port"),
 		Interval: ctx.GlobalDuration("interval"),
 		Name:     ctx.GlobalString("name"),
-		Workdir:  ctx.GlobalString("workdir"),
+		Workdir:  ctx.GlobalString("media-dir"),
 	})
 
 	go func() {
