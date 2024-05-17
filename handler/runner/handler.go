@@ -224,8 +224,8 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 		}, err
 	}
 	mediaFile := filepath.Join(dir, recordFilename)
-	args := []string{"-i", r.SourceURL, "-c", "copy", "-hls_time", "10",
-		"-hls_playlist_type", "vod", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", mediaFile}
+	args := []string{"-i", r.SourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
+		"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", mediaFile}
 	fmt.Printf("record started: ffmpeg %v\n", args)
 	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
 	cmd.Dir = dir
