@@ -22,6 +22,7 @@ const (
 	BaseURL         = "/mediaproc/v1"
 	URLRecord       = BaseURL + "/record"
 	URLPlay         = BaseURL + "/play"
+	URLDownload     = BaseURL + "/dl"
 	URLRunner       = "/cd/v1/runner"
 	URLRunnerLogJob = URLRunner + "/log/job/"
 
@@ -216,6 +217,7 @@ type LiveCallbackRecordStatusEvent struct {
 	EventTime    int64                 `json:"event_time"`
 	RecordDetail string                `json:"record_detail"`
 	RecordEvent  LiveRecordStatusEvent `json:"record_event"`
+	DownloadURL  string                `json:"download_url"`
 	Sequence     string                `json:"seq"`
 	SessionID    string                `json:"session_id"`
 	StreamID     string                `json:"stream_id"`

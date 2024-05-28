@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/url"
 	"strconv"
@@ -124,7 +123,7 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 	}
 
 	tid := strconv.FormatInt(id, 10)
-	playbackURL := fmt.Sprintf("%s%s/%d/index.m3u8", h.cfg.BaseURL, types.URLPlay, id)
+	playbackURL := h.mkPlaybackURL(int(id))
 	return &model.CreateRecordTaskResponse{Response: &model.CreateRecordTaskResponseParams{
 		TaskId:      &tid,
 		PlaybackURL: &playbackURL,

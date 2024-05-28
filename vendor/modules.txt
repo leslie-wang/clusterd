@@ -1,3 +1,7 @@
+# github.com/bluenviron/gohlslib v1.3.3
+## explicit; go 1.20
+github.com/bluenviron/gohlslib/pkg/playlist
+github.com/bluenviron/gohlslib/pkg/playlist/primitives
 # github.com/cpuguy83/go-md2man/v2 v2.0.2
 ## explicit; go 1.11
 github.com/cpuguy83/go-md2man/v2/md2man
@@ -25,8 +29,8 @@ github.com/russross/blackfriday/v2
 # github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
-# github.com/stretchr/testify v1.8.4
-## explicit; go 1.20
+# github.com/stretchr/testify v1.9.0
+## explicit; go 1.17
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
 github.com/stretchr/testify/suite

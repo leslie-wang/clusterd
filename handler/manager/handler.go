@@ -82,6 +82,9 @@ func (h *Handler) CreateRouter() *mux.Router {
 		// playback
 		h.r.HandleFunc(types.MkIDURLByBase(types.URLPlay)+"/{filename}", h.playback).Methods(http.MethodGet)
 
+		// download
+		h.r.HandleFunc(types.MkIDURLByBase(types.URLDownload), h.download).Methods(http.MethodGet)
+
 		h.r.Use(loggingMiddleware)
 	}
 	return h.r
