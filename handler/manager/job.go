@@ -66,13 +66,18 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		go notify(callbackURL, sessionID, &types.LiveCallbackRecordStatusEvent{
 			SessionID:   sessionID,
 			RecordEvent: types.LiveRecordStatusStartSucceeded,
-			DownloadURL: h.mkDownloadURL(jobID),
+		})
+	case types.RecordMp4FileCreated:
+		go notify(callbackURL, sessionID, &types.LiveCallbackRecordStatusEvent{
+			SessionID:   sessionID,
+			RecordEvent: types.LiveRecordMp4FileCreated,
+			DownloadURL: h.mkDownloadURL(jobID, status.Mp4Filename),
 		})
 	case types.RecordJobEnd:
 		go notify(callbackURL, sessionID, &types.LiveCallbackRecordStatusEvent{
 			SessionID:   sessionID,
 			RecordEvent: types.LiveRecordStatusEnded,
-			DownloadURL: h.mkDownloadURL(jobID),
+			DownloadURL: h.mkDownloadURL(jobID, ""),
 		})
 		err = h.jobDB.CompleteAndArchive(int64(jobID), &status.ExitCode)
 		if err != nil {
@@ -86,7 +91,7 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		go notify(callbackURL, sessionID, &types.LiveCallbackRecordStatusEvent{
 			SessionID:   sessionID,
 			RecordEvent: types.LiveRecordStatusError,
-			DownloadURL: h.mkDownloadURL(jobID),
+			DownloadURL: h.mkDownloadURL(jobID, ""),
 		})
 		err = h.jobDB.CompleteAndArchive(int64(jobID), &status.ExitCode)
 		if err != nil {
