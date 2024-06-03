@@ -59,11 +59,12 @@ type Job struct {
 }
 
 type JobRecord struct {
-	NotifyURL string
-	SourceURL string
-	StorePath string
-	StartTime *uint64
-	EndTime   *uint64
+	NotifyURL       string
+	SourceURL       string
+	StorePath       string
+	StartTime       *uint64
+	EndTime         *uint64
+	Mp4FileDuration uint
 }
 
 type JobStatusType int
@@ -72,14 +73,16 @@ const (
 	RecordJobStart JobStatusType = iota
 	RecordJobEnd
 	RecordJobException
+	RecordMp4FileCreated
 )
 
 type JobStatus struct {
-	ID       int           `json:"id"`
-	Type     JobStatusType `json:"type"`
-	ExitCode int           `json:"exit_code"`
-	Stdout   string        `json:"stdout"`
-	Stderr   string        `json:"stderr"`
+	ID          int           `json:"id"`
+	Type        JobStatusType `json:"type"`
+	ExitCode    int           `json:"exit_code"`
+	Stdout      string        `json:"stdout"`
+	Stderr      string        `json:"stderr"`
+	Mp4Filename string        `json:"mp4_filename"`
 }
 
 type LiveRecordRule struct {
@@ -203,6 +206,7 @@ const (
 	LiveRecordStatusResumed        = "record_resumed"
 	LiveRecordStatusError          = "record_error"
 	LiveRecordStatusEnded          = "record_ended"
+	LiveRecordMp4FileCreated       = "record_mp4_created"
 )
 
 type LiveCallbackRecordStatusEvent struct {

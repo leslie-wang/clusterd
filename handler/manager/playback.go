@@ -7,11 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/bluenviron/gohlslib/pkg/playlist"
 	"github.com/gorilla/mux"
+	"github.com/leslie-wang/clusterd/common/hls"
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,8 +23,11 @@ func (h *Handler) mkPlaybackURL(id int) string {
 	return fmt.Sprintf("%s%s/%d/%s", h.cfg.BaseURL, types.URLPlay, id, defaultIndexFile)
 }
 
-func (h *Handler) mkDownloadURL(id int) string {
-	return fmt.Sprintf("%s%s/%d", h.cfg.BaseURL, types.URLDownload, id)
+func (h *Handler) mkDownloadURL(id int, filename string) string {
+	if filename == "" {
+		return fmt.Sprintf("%s%s/%d", h.cfg.BaseURL, types.URLDownload, id)
+	}
+	return fmt.Sprintf("%s%s/%d/%s", h.cfg.BaseURL, types.URLDownload, id, filename)
 }
 
 func (h *Handler) playback(w http.ResponseWriter, r *http.Request) {
@@ -44,21 +46,13 @@ func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 	jobID := vars[types.ID]
 
 	dir := filepath.Join(h.cfg.MediaDir, jobID)
-	content, err := os.ReadFile(filepath.Join(dir, defaultIndexFile))
+	filename := vars["filename"]
+	if filename == "" {
+		filename = defaultIndexFile
+	}
+	mediaPL, err := hls.ParseMediaPlaylist(filepath.Join(dir, filename))
 	if err != nil {
 		util.WriteError(w, err)
-		return
-	}
-
-	pl, err := playlist.Unmarshal(content)
-	if err != nil {
-		util.WriteError(w, err)
-		return
-	}
-
-	mediaPL, ok := pl.(*playlist.Media)
-	if !ok {
-		util.WriteError(w, errors.Errorf("invalid recording"))
 		return
 	}
 
