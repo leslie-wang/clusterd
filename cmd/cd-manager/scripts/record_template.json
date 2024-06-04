@@ -1,0 +1,10 @@
+{
+    "Mp4Param": {
+        "Enable": 1
+    },
+    "HlsParam": {
+        "Enable": 1
+    },
+    "Description": "字符串",
+    "TemplateName": "字符串"
+}

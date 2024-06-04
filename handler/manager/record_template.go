@@ -2,7 +2,9 @@ package manager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/url"
 	"strconv"
 
@@ -90,8 +92,18 @@ func (h *Handler) handleDeleteLiveRecordTemplate(q url.Values) (*model.DeleteLiv
 	return &model.DeleteLiveRecordTemplateResponse{Response: &model.DeleteLiveRecordTemplateResponseParams{}}, nil
 }
 
-func (h *Handler) handleCreateLiveRecordTemplate(q url.Values) (*model.CreateLiveRecordTemplateResponse, error) {
-	t, err := h.parseLiveRecordTemplate(q)
+func (h *Handler) handleCreateLiveRecordTemplate(q url.Values, request io.ReadCloser) (*model.CreateLiveRecordTemplateResponse, error) {
+	var (
+		err error
+		t   *model.CreateLiveRecordTemplateRequestParams
+	)
+
+	if h.cfg.ParamQuery {
+		t, err = h.parseLiveRecordTemplate(q)
+	} else {
+		t = &model.CreateLiveRecordTemplateRequestParams{}
+		err = json.NewDecoder(request).Decode(t)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -3261,6 +3261,10 @@ func (r *CreatePullStreamConfigResponse) FromJsonString(s string) error {
 	return json.Unmarshal([]byte(s), &r)
 }
 
+type RecordInputStream struct {
+	SourceURL string `json:"SourceURL,omitempty" name:"SourceURL"`
+}
+
 // Predefined struct for user
 type CreateRecordTaskRequestParams struct {
 	// 流名称。
@@ -3290,10 +3294,11 @@ type CreateRecordTaskRequestParams struct {
 	Extension *string `json:"Extension,omitempty" name:"Extension"`
 
 	// video solar definition
-	SourceURL       *string `json:"SourceURL,omitempty" name:"SourceURL"`
-	StorePath       string  `json:"StorePath,omitempty" name:"StorePath"`
-	NotifyURL       string  `json:"NotifyURL,omitempty" name:"NotifyURL"`
-	Mp4FileDuration uint    `json:"Mp4FileDuration,omitempty" name:"Mp4FileDuration"`
+	SourceURL       *string             `json:"SourceURL,omitempty" name:"SourceURL"`
+	RecordStreams   []RecordInputStream `json:"RecordStreams,omitempty" name:"RecordStreams"`
+	StorePath       string              `json:"StorePath,omitempty" name:"StorePath"`
+	NotifyURL       string              `json:"NotifyURL,omitempty" name:"NotifyURL"`
+	Mp4FileDuration uint                `json:"Mp4FileDuration,omitempty" name:"Mp4FileDuration"`
 }
 
 type CreateRecordTaskRequest struct {
