@@ -114,7 +114,7 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	switch q.Get(Action) {
 	case ActionCreateLiveRecordTemplate:
-		resp, err = h.handleCreateLiveRecordTemplate(q)
+		resp, err = h.handleCreateLiveRecordTemplate(q, r.Body)
 	case ActionDescribeLiveRecordTemplate:
 		resp, err = h.handleGetLiveRecordTemplate(q)
 	case ActionDescribeLiveRecordTemplates:
