@@ -152,6 +152,23 @@ func (h *Handler) Run(ctx context.Context) error {
 
 func (h *Handler) runJob(ctx context.Context, j *types.Job) (*types.JobStatus, error) {
 	if j.Category == types.CategoryRecord {
+		r := &types.JobRecord{}
+		err := json.Unmarshal([]byte(j.Metadata), r)
+		if err != nil {
+			return &types.JobStatus{
+				ID:       j.ID,
+				ExitCode: -1,
+				Stdout:   err.Error(),
+			}, err
+		}
+
+		if len(r.RecordStreams) == 0 || r.RecordStreams[0].SourceURL == "" {
+			return &types.JobStatus{
+				ID:       j.ID,
+				ExitCode: -1,
+			}, errors.New("Record source URL is empty")
+		}
+
 		runCtx, cancel := context.WithCancel(ctx)
 		go func() {
 			//pull status, and cancel job if it is deleted
@@ -178,22 +195,12 @@ func (h *Handler) runJob(ctx context.Context, j *types.Job) (*types.JobStatus, e
 				}
 			}
 		}()
-		return h.runRecordJob(runCtx, j)
+		return h.runRecordJob(runCtx, j.ID, r)
 	}
 	return nil, fmt.Errorf("unknown job category: %v", j)
 }
 
-func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobStatus, error) {
-	r := &types.JobRecord{}
-	err := json.Unmarshal([]byte(j.Metadata), r)
-	if err != nil {
-		return &types.JobStatus{
-			ID:       j.ID,
-			ExitCode: -1,
-			Stdout:   err.Error(),
-		}, err
-	}
-
+func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) (*types.JobStatus, error) {
 	// sleep until start time
 	var duration time.Duration
 	if r.StartTime != nil {
@@ -208,7 +215,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 		duration = time.Until(time.Unix(int64(*r.EndTime), 0))
 	}
 
-	go h.addReport(types.JobStatus{ID: j.ID, Type: types.RecordJobStart})
+	go h.addReport(types.JobStatus{ID: id, Type: types.RecordJobStart})
 
 	runCtx, cancel := context.WithTimeout(ctx, duration)
 	defer cancel()
@@ -217,17 +224,17 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 	if storePath == "" {
 		storePath = h.c.Workdir
 	}
-	dir := filepath.Join(storePath, strconv.Itoa(j.ID))
-	err = os.MkdirAll(dir, 0777)
+	dir := filepath.Join(storePath, strconv.Itoa(id))
+	err := os.MkdirAll(dir, 0777)
 	if err != nil {
 		return &types.JobStatus{
-			ID:       j.ID,
+			ID:       id,
 			ExitCode: -1,
 			Stdout:   err.Error(),
 		}, err
 	}
 	mediaFile := filepath.Join(dir, recordFilename)
-	args := []string{"-i", r.SourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
+	args := []string{"-i", r.RecordStreams[0].SourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
 		"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", mediaFile}
 	fmt.Printf("record started: ffmpeg %v\n", args)
 	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
@@ -237,7 +244,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 	logoutFile, err := os.Create(logoutFilename)
 	if err != nil {
 		return &types.JobStatus{
-			ID:       j.ID,
+			ID:       id,
 			ExitCode: -1,
 			Stdout:   err.Error(),
 		}, err
@@ -248,7 +255,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 	logerrFile, err := os.Create(logerrFilename)
 	if err != nil {
 		return &types.JobStatus{
-			ID:       j.ID,
+			ID:       id,
 			ExitCode: -1,
 			Stdout:   err.Error(),
 		}, err
@@ -311,7 +318,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 				logrus.Warnf("write media playlist %s: %s", name, content)
 			}
 			err = h.cli.ReportJobStatus(&types.JobStatus{
-				ID:          j.ID,
+				ID:          id,
 				Type:        types.RecordMp4FileCreated,
 				Mp4Filename: name,
 			})
@@ -348,7 +355,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 	exitCode := cmd.ProcessState.ExitCode()
 	if err == nil && exitCode == 0 {
 		log.Printf("recording finished")
-		return &types.JobStatus{ID: j.ID, Type: types.RecordJobEnd}, nil
+		return &types.JobStatus{ID: id, Type: types.RecordJobEnd}, nil
 	}
 	sout, err := os.ReadFile(logoutFilename)
 	if err != nil {
@@ -360,7 +367,7 @@ func (h *Handler) runRecordJob(ctx context.Context, j *types.Job) (*types.JobSta
 	}
 
 	return &types.JobStatus{
-		ID:       j.ID,
+		ID:       id,
 		Type:     types.RecordJobException,
 		ExitCode: exitCode,
 		Stdout:   string(sout),

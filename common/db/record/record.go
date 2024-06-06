@@ -215,7 +215,7 @@ func (r *DB) RemoveRecordRuleByDomainAppStream(domain, app, stream string) error
 
 func (r *DB) InsertRecordTask(tx *sql.Tx, t *types.LiveRecordTask) (int64, error) {
 	res, err := tx.Exec(insertRecordTask, t.TemplateId, t.DomainName, t.AppName, t.StreamName, t.StreamType, t.StartTime, t.EndTime,
-		t.SourceURL, t.StorePath)
+		t.RecordStreams[0].SourceURL, t.StorePath)
 	if err != nil {
 		return 0, err
 	}

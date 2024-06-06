@@ -3294,7 +3294,6 @@ type CreateRecordTaskRequestParams struct {
 	Extension *string `json:"Extension,omitempty" name:"Extension"`
 
 	// video solar definition
-	SourceURL       *string             `json:"SourceURL,omitempty" name:"SourceURL"`
 	RecordStreams   []RecordInputStream `json:"RecordStreams,omitempty" name:"RecordStreams"`
 	StorePath       string              `json:"StorePath,omitempty" name:"StorePath"`
 	NotifyURL       string              `json:"NotifyURL,omitempty" name:"NotifyURL"`

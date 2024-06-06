@@ -17,12 +17,12 @@ import (
 func (c *Client) CreateRecordTask(domain, app, stream, url string, start, end *uint64) (*string, error) {
 	task := &types.LiveRecordTask{}
 	task.CreateRecordTaskRequestParams = &model.CreateRecordTaskRequestParams{
-		DomainName: &domain,
-		AppName:    &app,
-		StreamName: &stream,
-		StartTime:  start,
-		SourceURL:  &url,
-		EndTime:    end,
+		DomainName:    &domain,
+		AppName:       &app,
+		StreamName:    &stream,
+		StartTime:     start,
+		RecordStreams: []model.RecordInputStream{{SourceURL: url}},
+		EndTime:       end,
 	}
 	createRecordURL := c.makeURL(types.URLRecord)
 	query := map[string]string{
