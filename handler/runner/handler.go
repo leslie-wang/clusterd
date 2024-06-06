@@ -345,9 +345,10 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	select {
 	case err = <-errChan:
 	case <-runCtx.Done():
-		err = ctx.Err()
+		err = runCtx.Err()
 		if err == context.DeadlineExceeded {
 			// recording is end now.
+			log.Printf("recording is exceeding deadline")
 			err = nil
 		}
 	}
@@ -356,6 +357,8 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	if err == nil && exitCode == 0 {
 		log.Printf("recording finished")
 		return &types.JobStatus{ID: id, Type: types.RecordJobEnd}, nil
+	} else {
+		log.Printf("record exitcode: %d, err: %s", cmd.ProcessState.ExitCode(), err)
 	}
 	sout, err := os.ReadFile(logoutFilename)
 	if err != nil {
