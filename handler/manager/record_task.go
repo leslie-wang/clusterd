@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/leslie-wang/clusterd/common/model"
+	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
 )
 
@@ -42,6 +43,10 @@ func (h *Handler) handleDeleteRecordTask(q url.Values) (*model.DeleteLiveRecordR
 	job, err := h.jobDB.Get(int(id))
 	if err != nil {
 		return nil, err
+	}
+
+	if job == nil {
+		return nil, util.ErrNotExist
 	}
 
 	callbackURL := h.getCallbackURL(job)
