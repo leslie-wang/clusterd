@@ -3,7 +3,8 @@
   "DomainName": "test.play.com",
   "AppName": "live",
   "StreamName": "livetest",
-  "SourceURL": "http://localhost:8000/test.mp4",
-    "StorePath" :"/tmp/record1",
-  "EndTime": 1589904000
+  "RecordStreams": [
+    {"SourceURL": "udp://localhost:1234"}
+  ],
+  "StorePath" :"/tmp/record1"
 }

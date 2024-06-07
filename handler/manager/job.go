@@ -22,29 +22,10 @@ func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
 	util.WriteBody(w, jobs)
 }
 
-func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
-	jobID, err := strconv.Atoi(mux.Vars(r)[types.ID])
-	if err != nil {
-		util.WriteError(w, err)
-		return
-	}
-
-	job, err := h.jobDB.Get(jobID)
-	if err != nil {
-		util.WriteError(w, err)
-		return
-	}
-
+func (h *Handler) getCallbackURL(job *types.Job) string {
 	cb, err := h.recordDB.GetCallbackRuleByRecordTaskID(job.RefID)
 	if err != nil {
-		log.Printf("WARN: retrieve job %d's callback info: %s", jobID, err)
-	}
-
-	status := &types.JobStatus{}
-	err = json.NewDecoder(r.Body).Decode(status)
-	if err != nil {
-		util.WriteError(w, err)
-		return
+		log.Printf("WARN: retrieve job %d's callback info: %s", job.ID, err)
 	}
 
 	record := &types.JobRecord{}
@@ -59,6 +40,36 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 	} else if cb != nil && cb.RecordStatusNotifyUrl != nil {
 		callbackURL = *cb.RecordNotifyUrl
 	}
+	return callbackURL
+}
+
+func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
+	jobID, err := strconv.Atoi(mux.Vars(r)[types.ID])
+	if err != nil {
+		util.WriteError(w, err)
+		return
+	}
+
+	job, err := h.jobDB.Get(jobID)
+	if err != nil {
+		util.WriteError(w, err)
+		return
+	}
+
+	status := &types.JobStatus{}
+	err = json.NewDecoder(r.Body).Decode(status)
+	if err != nil {
+		util.WriteError(w, err)
+		return
+	}
+
+	if job.ExitCode != nil {
+		// job has finished before report, no need special report
+		log.Printf("skip report %v as it is completed already", status)
+		return
+	}
+
+	callbackURL := h.getCallbackURL(job)
 
 	sessionID := strconv.Itoa(jobID)
 	switch status.Type {

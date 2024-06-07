@@ -13,6 +13,8 @@ import (
 	"github.com/leslie-wang/clusterd/types"
 )
 
+var recordSuccess = 0
+
 func (h *Handler) handleListRecordTasks() (*model.DescribeRecordTaskResponse, error) {
 	list, err := h.recordDB.ListRecordTasks(context.Background())
 	if err != nil {
@@ -37,6 +39,13 @@ func (h *Handler) handleDeleteRecordTask(q url.Values) (*model.DeleteLiveRecordR
 		return nil, err
 	}
 
+	job, err := h.jobDB.Get(int(id))
+	if err != nil {
+		return nil, err
+	}
+
+	callbackURL := h.getCallbackURL(job)
+
 	tx, err := h.newTx()
 	if err != nil {
 		return nil, err
@@ -46,10 +55,18 @@ func (h *Handler) handleDeleteRecordTask(q url.Values) (*model.DeleteLiveRecordR
 	if err != nil {
 		return nil, err
 	}
-	err = h.jobDB.CompleteAndArchiveWithTx(tx, id, nil)
+
+	err = h.jobDB.CompleteAndArchiveWithTx(tx, id, &recordSuccess)
 	if err != nil {
 		return nil, err
 	}
+
+	go notify(callbackURL, tid, &types.LiveCallbackRecordStatusEvent{
+		SessionID:   tid,
+		RecordEvent: types.LiveRecordStatusEnded,
+		DownloadURL: h.mkDownloadURL(int(id), ""),
+	})
+
 	return &model.DeleteLiveRecordRuleResponse{Response: &model.DeleteLiveRecordRuleResponseParams{}}, tx.Commit()
 }
 
