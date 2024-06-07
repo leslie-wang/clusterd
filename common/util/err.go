@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrNotSupportedAPI = errors.New("Not supported API")
+	ErrNotSupportedAPI = errors.New("not supported API")
 )
 
 func MakeStatusError(body io.Reader) error {
