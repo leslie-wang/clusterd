@@ -182,9 +182,8 @@ func (h *Handler) runJob(ctx context.Context, j *types.Job) (*types.JobStatus, e
 					// not finished, sleep
 					goto sleep
 				}
-				if currentJob.ExitCode == nil {
-					cancel()
-				}
+
+				cancel()
 				return
 			sleep:
 				after := time.After(5 * time.Second)
