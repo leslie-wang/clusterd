@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/leslie-wang/clusterd/common/hls"
@@ -49,6 +50,8 @@ func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 	filename := vars["filename"]
 	if filename == "" {
 		filename = defaultIndexFile
+	} else {
+		filename = strings.Trim(filename, filepath.Ext(filename)) + ".m3u8"
 	}
 	mediaPL, err := hls.ParseMediaPlaylist(filepath.Join(dir, filename))
 	if err != nil {

@@ -277,52 +277,56 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 				return
 			}
 			// create a new m3u8 file
-			name := fmt.Sprintf("mp%d.m3u8", index)
+			dlIndexFilename := fmt.Sprintf("dl%d.m3u8", index)
+			lastIndexFilename := fmt.Sprintf("dl%d.m3u8", index-1)
+			dlFilename := fmt.Sprintf("dl%d.mp4", index)
+			var content []byte
 			if index == 1 {
-				f, err := os.Create(filepath.Join(dir, name))
+				f, err := os.Create(filepath.Join(dir, dlIndexFilename))
 				if err != nil {
-					logrus.Warnf("create %s: %s", name, err)
+					logrus.Warnf("create %s: %s", dlIndexFilename, err)
 					continue
 				}
 
-				content, err := os.ReadFile(mediaFile)
+				content, err = os.ReadFile(mediaFile)
 				if err != nil {
 					logrus.Warnf("read %s: %s", mediaFile, err)
 				} else {
 					_, err = f.Write(content)
 					if err != nil {
-						logrus.Warnf("copy %s into %s: %s", mediaFile, name, err)
+						logrus.Warnf("copy %s into %s: %s", mediaFile, dlIndexFilename, err)
 					}
 				}
 				err = f.Close()
 				if err != nil {
-					logrus.Warnf("close %s: %s", name, err)
+					logrus.Warnf("close %s: %s", dlIndexFilename, err)
+					continue
 				}
-				logrus.Infof("Generated mp4 recording index file %s", filepath.Join(dir, name))
-				continue
+			} else {
+				// copy last media file
+				mediaPL, err := trimSegments(mediaFile, filepath.Join(dir, lastIndexFilename))
+				if err != nil {
+					logrus.Warnf("trim segment for %s: %s", dlIndexFilename, err)
+					continue
+				}
+				content, err = mediaPL.Marshal()
+				if err != nil {
+					logrus.Warnf("marshal media playlist %s: %s", dlIndexFilename, content)
+					continue
+				}
+				err = os.WriteFile(filepath.Join(dir, dlIndexFilename), content, 0755)
+				if err != nil {
+					logrus.Warnf("write media playlist %s: %s", dlIndexFilename, content)
+				}
 			}
-			// copy last media file
-			mediaPL, err := trimSegments(mediaFile, fmt.Sprintf("mp%d.m3u8", index-1))
-			if err != nil {
-				logrus.Warnf("trim segment for %s: %s", name, err)
-				continue
-			}
-			content, err := mediaPL.Marshal()
-			if err != nil {
-				logrus.Warnf("marshal media playlist %s: %s", name, content)
-				continue
-			}
-			err = os.WriteFile(name, content, 0755)
-			if err != nil {
-				logrus.Warnf("write media playlist %s: %s", name, content)
-			}
+			logrus.Infof("Generated mp4 recording index file %s", filepath.Join(dir, dlIndexFilename))
 			err = h.cli.ReportJobStatus(&types.JobStatus{
 				ID:          id,
 				Type:        types.RecordMp4FileCreated,
-				Mp4Filename: name,
+				Mp4Filename: dlFilename,
 			})
 			if err != nil {
-				logrus.Warnf("report mp4 file %s creation: %s", name, content)
+				logrus.Warnf("report mp4 file %s creation: %s", dlIndexFilename, content)
 			}
 		}
 	}()
@@ -394,10 +398,14 @@ func trimSegments(currentPl, lastPl string) (*playlist.Media, error) {
 	startIndex := 0
 	for i, s := range currMediaPL.Segments {
 		if s.URI == lastSegmentURI {
-			startIndex = i
+			startIndex = i + 1
 			break
 		}
 	}
+	logrus.Infof("last download segment: %s, new download segments %s -> %s", lastSegmentURI,
+		currMediaPL.Segments[startIndex].URI,
+		currMediaPL.Segments[len(currMediaPL.Segments)-1].URI)
+
 	if startIndex == 0 {
 		return nil, errors.Errorf("unable to find last segment URI '%s' in current playlist", lastSegmentURI)
 	}
