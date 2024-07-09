@@ -120,9 +120,11 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 		RecordStreams:   task.RecordStreams,
 		NotifyURL:       task.NotifyURL,
 		StorePath:       task.StorePath,
-		StartTime:       task.StartTime,
 		EndTime:         task.EndTime,
 		Mp4FileDuration: task.Mp4FileDuration,
+	}
+	if task.StartTime != nil && *task.StartTime != 0 {
+		record.StartTime = task.StartTime
 	}
 	content, err := json.Marshal(record)
 	if err != nil {
