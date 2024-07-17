@@ -1,0 +1,1 @@
+ffmpeg -re -i ~/test.mp4 -vcodec copy -an  -f rtp rtp://localhost:5004 -acodec copy -vn -f rtp rtp://localhost:5006 -sdp_file test.sdp

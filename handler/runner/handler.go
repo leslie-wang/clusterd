@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -199,6 +200,24 @@ func (h *Handler) runJob(ctx context.Context, j *types.Job) (*types.JobStatus, e
 	return nil, fmt.Errorf("unknown job category: %v", j)
 }
 
+const sdpTemplate = `SDP:
+v=0
+o=- 0 0 IN IP4 %s
+s=No Name
+t=0 0
+a=tool:libavformat 58.29.100
+m=video %s RTP/AVP 96
+c=IN IP6 ::1
+b=AS:1455
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1; sprop-parameter-sets=J01AH6kYHgLdgDUBAQG2wrXvfAQ=,KN4JyA==; profile-level-id=4D401F
+m=audio %s RTP/AVP 97
+c=IN IP6 ::1
+b=AS:4
+a=rtpmap:97 MPEG4-GENERIC/22050/2
+a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=1390
+`
+
 func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) (*types.JobStatus, error) {
 	// sleep until start time
 	var duration time.Duration
@@ -232,9 +251,42 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 			Stdout:   err.Error(),
 		}, err
 	}
-	mediaFile := filepath.Join(dir, recordFilename)
-	args := []string{"-i", r.RecordStreams[0].SourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
-		"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", mediaFile}
+	masterIndexFilename := filepath.Join(dir, recordFilename)
+
+	var args []string
+	sourceURL := r.RecordStreams[0].SourceURL
+	if len(r.RecordStreams) > 1 {
+		args = []string{"-protocol_whitelist", "file,udp,rtp"}
+
+		vu, err := url.Parse(r.RecordStreams[0].SourceURL)
+		if err != nil {
+			return nil, err
+		}
+		va, err := url.Parse(r.RecordStreams[1].SourceURL)
+		if err != nil {
+			return nil, err
+		}
+		sdp := fmt.Sprintf(sdpTemplate, vu.Hostname(), vu.Port(), va.Port())
+		fmt.Println(sdp)
+		sdpFile, err := os.CreateTemp("", "sdp")
+		if err != nil {
+			return nil, err
+		}
+		sourceURL = sdpFile.Name()
+
+		_, err = sdpFile.Write([]byte(sdp))
+		if err != nil {
+			return nil, err
+		}
+		err = sdpFile.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	args = append(args, "-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
+		"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename)
+
 	fmt.Printf("record started: ffmpeg %v\n", args)
 	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
 	cmd.Dir = dir
@@ -262,74 +314,7 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	defer logerrFile.Close()
 
 	// start count record
-	go func() {
-		if r.Mp4FileDuration <= 0 {
-			logrus.Warnf("invalid mp4 record file duration: %ds", r.Mp4FileDuration)
-			return
-		}
-		index := 0
-		for {
-			index++
-			after := time.After(time.Duration(r.Mp4FileDuration) * time.Second)
-			select {
-			case <-after:
-			case <-runCtx.Done():
-				return
-			}
-			// create a new m3u8 file
-			dlIndexFilename := fmt.Sprintf("dl%d.m3u8", index)
-			lastIndexFilename := fmt.Sprintf("dl%d.m3u8", index-1)
-			dlFilename := fmt.Sprintf("dl%d.mp4", index)
-			var content []byte
-			if index == 1 {
-				f, err := os.Create(filepath.Join(dir, dlIndexFilename))
-				if err != nil {
-					logrus.Warnf("create %s: %s", dlIndexFilename, err)
-					continue
-				}
-
-				content, err = os.ReadFile(mediaFile)
-				if err != nil {
-					logrus.Warnf("read %s: %s", mediaFile, err)
-				} else {
-					_, err = f.Write(content)
-					if err != nil {
-						logrus.Warnf("copy %s into %s: %s", mediaFile, dlIndexFilename, err)
-					}
-				}
-				err = f.Close()
-				if err != nil {
-					logrus.Warnf("close %s: %s", dlIndexFilename, err)
-					continue
-				}
-			} else {
-				// copy last media file
-				mediaPL, err := trimSegments(mediaFile, filepath.Join(dir, lastIndexFilename))
-				if err != nil {
-					logrus.Warnf("trim segment for %s: %s", dlIndexFilename, err)
-					continue
-				}
-				content, err = mediaPL.Marshal()
-				if err != nil {
-					logrus.Warnf("marshal media playlist %s: %s", dlIndexFilename, content)
-					continue
-				}
-				err = os.WriteFile(filepath.Join(dir, dlIndexFilename), content, 0755)
-				if err != nil {
-					logrus.Warnf("write media playlist %s: %s", dlIndexFilename, content)
-				}
-			}
-			logrus.Infof("Generated mp4 recording index file %s", filepath.Join(dir, dlIndexFilename))
-			err = h.cli.ReportJobStatus(&types.JobStatus{
-				ID:          id,
-				Type:        types.RecordMp4FileCreated,
-				Mp4Filename: dlFilename,
-			})
-			if err != nil {
-				logrus.Warnf("report mp4 file %s creation: %s", dlIndexFilename, content)
-			}
-		}
-	}()
+	go h.generateIntermittentDownloadIndexFile(runCtx, r, id, dir, masterIndexFilename)
 
 	errChan := make(chan error)
 	go func() {
@@ -379,6 +364,76 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 		Stdout:   string(sout),
 		Stderr:   string(serr),
 	}, nil
+}
+
+func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *types.JobRecord,
+	id int, dir, masterIndexFilename string) {
+	if r.Mp4FileDuration <= 0 {
+		logrus.Warnf("invalid mp4 record file duration: %ds", r.Mp4FileDuration)
+		return
+	}
+	index := 0
+	for {
+		index++
+		after := time.After(time.Duration(r.Mp4FileDuration) * time.Second)
+		select {
+		case <-after:
+		case <-ctx.Done():
+			return
+		}
+		// create a new m3u8 file
+		dlIndexFilename := fmt.Sprintf("dl%d.m3u8", index)
+		lastIndexFilename := fmt.Sprintf("dl%d.m3u8", index-1)
+		dlFilename := fmt.Sprintf("dl%d.mp4", index)
+		var content []byte
+		if index == 1 {
+			f, err := os.Create(filepath.Join(dir, dlIndexFilename))
+			if err != nil {
+				logrus.Warnf("create %s: %s", dlIndexFilename, err)
+				continue
+			}
+
+			content, err = os.ReadFile(masterIndexFilename)
+			if err != nil {
+				logrus.Warnf("read %s: %s", masterIndexFilename, err)
+			} else {
+				_, err = f.Write(content)
+				if err != nil {
+					logrus.Warnf("copy %s into %s: %s", masterIndexFilename, dlIndexFilename, err)
+				}
+			}
+			err = f.Close()
+			if err != nil {
+				logrus.Warnf("close %s: %s", dlIndexFilename, err)
+				continue
+			}
+		} else {
+			// copy last media file
+			mediaPL, err := trimSegments(masterIndexFilename, filepath.Join(dir, lastIndexFilename))
+			if err != nil {
+				logrus.Warnf("trim segment for %s: %s", dlIndexFilename, err)
+				continue
+			}
+			content, err = mediaPL.Marshal()
+			if err != nil {
+				logrus.Warnf("marshal media playlist %s: %s", dlIndexFilename, content)
+				continue
+			}
+			err = os.WriteFile(filepath.Join(dir, dlIndexFilename), content, 0755)
+			if err != nil {
+				logrus.Warnf("write media playlist %s: %s", dlIndexFilename, content)
+			}
+		}
+		logrus.Infof("Generated mp4 recording index file %s", filepath.Join(dir, dlIndexFilename))
+		err := h.cli.ReportJobStatus(&types.JobStatus{
+			ID:          id,
+			Type:        types.RecordMp4FileCreated,
+			Mp4Filename: dlFilename,
+		})
+		if err != nil {
+			logrus.Warnf("report mp4 file %s creation: %s", dlIndexFilename, content)
+		}
+	}
 }
 
 func trimSegments(currentPl, lastPl string) (*playlist.Media, error) {
