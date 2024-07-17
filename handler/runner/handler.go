@@ -219,24 +219,31 @@ a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdelta
 `
 
 func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) (*types.JobStatus, error) {
-	// sleep until start time
-	var duration time.Duration
-	if r.StartTime != nil {
-		startTime := time.Unix(int64(*r.StartTime), 0)
-		if startTime.Before(time.Now()) {
-			log.Printf("start time (%s) is earlier than now (%s)", startTime, time.Now())
+	var runCtx context.Context
+	if r.EndTime != nil {
+		var (
+			duration time.Duration
+			cancel   context.CancelFunc
+		)
+		if r.StartTime != nil {
+			startTime := time.Unix(int64(*r.StartTime), 0)
+			if startTime.Before(time.Now()) {
+				log.Printf("start time (%s) is earlier than now (%s)", startTime, time.Now())
+			} else {
+				time.Sleep(time.Until(startTime))
+			}
+			duration = time.Duration(*r.EndTime-*r.StartTime) * time.Second
 		} else {
-			time.Sleep(time.Until(startTime))
+			duration = time.Until(time.Unix(int64(*r.EndTime), 0))
 		}
-		duration = time.Duration(*r.EndTime-*r.StartTime) * time.Second
+		runCtx, cancel = context.WithTimeout(ctx, duration)
+		defer cancel()
 	} else {
-		duration = time.Until(time.Unix(int64(*r.EndTime), 0))
+		// no stop time until it is stopped by api
+		runCtx = context.Background()
 	}
 
 	go h.addReport(types.JobStatus{ID: id, Type: types.RecordJobStart})
-
-	runCtx, cancel := context.WithTimeout(ctx, duration)
-	defer cancel()
 
 	storePath := r.StorePath
 	if storePath == "" {
