@@ -140,6 +140,9 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 	if task.StartTime != nil {
 		st := time.Unix(int64(*task.StartTime), 0)
 		job.ScheduleTime = &st
+	} else {
+		now := time.Now()
+		job.ScheduleTime = &now
 	}
 
 	err = h.jobDB.Insert(tx, job)
