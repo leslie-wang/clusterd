@@ -204,18 +204,14 @@ const sdpTemplate = `SDP:
 v=0
 o=- 0 0 IN IP4 %s
 s=No Name
+c=IN IP4 %s
 t=0 0
-a=tool:libavformat 58.29.100
+a=tool:libavformat 57.29.101
 m=video %s RTP/AVP 96
-c=IN IP6 ::1
-b=AS:1455
 a=rtpmap:96 H264/90000
-a=fmtp:96 packetization-mode=1; sprop-parameter-sets=J01AH6kYHgLdgDUBAQG2wrXvfAQ=,KN4JyA==; profile-level-id=4D401F
+a=fmtp:96 packetization-mode=1
 m=audio %s RTP/AVP 97
-c=IN IP6 ::1
-b=AS:4
-a=rtpmap:97 MPEG4-GENERIC/22050/2
-a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=1390
+a=rtpmap:97 opus/48000/2
 `
 
 func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) (*types.JobStatus, error) {
@@ -263,8 +259,6 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	var args []string
 	sourceURL := r.RecordStreams[0].SourceURL
 	if len(r.RecordStreams) > 1 {
-		args = []string{"-protocol_whitelist", "file,udp,rtp"}
-
 		vu, err := url.Parse(r.RecordStreams[0].SourceURL)
 		if err != nil {
 			return nil, err
@@ -273,7 +267,7 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 		if err != nil {
 			return nil, err
 		}
-		sdp := fmt.Sprintf(sdpTemplate, vu.Hostname(), vu.Port(), va.Port())
+		sdp := fmt.Sprintf(sdpTemplate, vu.Hostname(), vu.Hostname(), vu.Port(), va.Port())
 		fmt.Println(sdp)
 		sdpFile, err := os.CreateTemp("", "sdp")
 		if err != nil {
@@ -289,10 +283,13 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 		if err != nil {
 			return nil, err
 		}
+		args = []string{"-protocol_whitelist", "file,udp,rtp", "-i", sourceURL, "-vcodec", "copy",
+			"-acodec", "aac", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
+			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename}
+	} else {
+		args = []string{"-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
+			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename}
 	}
-
-	args = append(args, "-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
-		"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename)
 
 	fmt.Printf("record started: ffmpeg %v\n", args)
 	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
