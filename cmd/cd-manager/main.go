@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/leslie-wang/clusterd/common/db"
+	"github.com/leslie-wang/clusterd/common/release"
 	"github.com/leslie-wang/clusterd/handler/manager"
 	"github.com/leslie-wang/clusterd/types"
 	"github.com/urfave/cli"
@@ -21,6 +22,7 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Usage = "FFMPEG Cluster Manager"
+	app.Version = release.Version
 
 	app.Action = serve
 	app.Flags = []cli.Flag{

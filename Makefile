@@ -1,8 +1,7 @@
 .PHONY: vendor
 
 SHELL=/bin/bash # Use bash syntax
-VERSION_COMPILE := -ldflags "-X github.com/leslie-wang/common/release.Version=$$(cat LATEST_RELEASE)"
-GO_INSTALL = go install -v $(VERSION_COMPILE
+VERSION_COMPILE := -ldflags "-X github.com/leslie-wang/clusterd/common/release.Version=$$(cat LATEST_RELEASE)"
 
 vendor:
 	go mod vendor
@@ -25,6 +24,7 @@ dev:
 
 release:
 	echo "release-$$(date +%m-%d-%y.%H.%M.%S)-$$(git rev-parse --short=8 HEAD)" >LATEST_RELEASE
+	go install -v $(VERSION_COMPILE) ./cmd/...
 
 install:
 	go install -v ./cmd/...
