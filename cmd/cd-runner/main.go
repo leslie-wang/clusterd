@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/leslie-wang/clusterd/common/release"
 	"github.com/leslie-wang/clusterd/handler/runner"
 	"github.com/leslie-wang/clusterd/types"
 	"github.com/urfave/cli"
@@ -29,6 +30,7 @@ func main() {
 
 	app := cli.NewApp()
 	app.Usage = "FFMPEG cluster runner"
+	app.Version = release.Version
 
 	app.Action = serve
 	app.Flags = []cli.Flag{
