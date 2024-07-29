@@ -3298,6 +3298,7 @@ type CreateRecordTaskRequestParams struct {
 	StorePath       string              `json:"StorePath,omitempty" name:"StorePath"`
 	NotifyURL       string              `json:"NotifyURL,omitempty" name:"NotifyURL"`
 	Mp4FileDuration uint                `json:"Mp4FileDuration,omitempty" name:"Mp4FileDuration"`
+	RecordTimeout   string              `json:"RecordTimeout,omitempty" name:"RecordTimeout"`
 }
 
 type CreateRecordTaskRequest struct {

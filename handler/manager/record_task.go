@@ -123,6 +123,14 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 		EndTime:         task.EndTime,
 		Mp4FileDuration: task.Mp4FileDuration,
 	}
+	if task.RecordTimeout != "" {
+		timeout, err := time.ParseDuration(task.RecordTimeout)
+		if err != nil {
+			return nil, err
+		}
+		record.RecordTimeout = timeout.Microseconds()
+	}
+
 	if task.StartTime != nil && *task.StartTime != 0 {
 		record.StartTime = task.StartTime
 	}

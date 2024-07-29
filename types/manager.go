@@ -65,6 +65,7 @@ type JobRecord struct {
 	EndTime         *uint64
 	RecordStreams   []model.RecordInputStream
 	Mp4FileDuration uint
+	RecordTimeout   int64
 }
 
 type JobStatusType int
