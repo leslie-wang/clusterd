@@ -64,6 +64,21 @@ func main() {
 			Usage: "interval to fetch next job",
 			Value: time.Second,
 		},
+		cli.StringFlag{
+			Name:  "log-dir, ld",
+			Usage: "directory to store all logs",
+			Value: "/var/log/clusterd",
+		},
+		cli.IntFlag{
+			Name:  "max-log-size",
+			Usage: "maximum size in megabytes of the log file before it get rotated",
+			Value: 100,
+		},
+		cli.IntFlag{
+			Name:  "max-log-backups",
+			Usage: "maximum number of old log files to retain",
+			Value: 25,
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -74,13 +89,19 @@ func main() {
 func serve(ctx *cli.Context) error {
 	installSignalHandler()
 
-	handler := runner.NewHandler(runner.Config{
-		MgrHost:  ctx.GlobalString("mgr-host"),
-		MgrPort:  ctx.GlobalUint("mgr-port"),
-		Interval: ctx.GlobalDuration("interval"),
-		Name:     ctx.GlobalString("name"),
-		Workdir:  ctx.GlobalString("media-dir"),
+	handler, err := runner.NewHandler(runner.Config{
+		MgrHost:      ctx.GlobalString("mgr-host"),
+		MgrPort:      ctx.GlobalUint("mgr-port"),
+		Interval:     ctx.GlobalDuration("interval"),
+		Name:         ctx.GlobalString("name"),
+		Workdir:      ctx.GlobalString("media-dir"),
+		LogDir:       ctx.String("log-dir"),
+		MaxLogSize:   ctx.Int("max-log-size"),
+		MaxLogBackup: ctx.Int("max-log-backups"),
 	})
+	if err != nil {
+		return err
+	}
 
 	go func() {
 		host := fmt.Sprintf(":%d", ctx.Uint("port"))

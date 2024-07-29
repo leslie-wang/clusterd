@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,10 +19,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/leslie-wang/clusterd/client/manager"
 	"github.com/leslie-wang/clusterd/common/hls"
+	"github.com/leslie-wang/clusterd/common/logger"
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -39,6 +38,10 @@ type Config struct {
 	Name     string
 	Workdir  string
 	Interval time.Duration
+
+	LogDir       string
+	MaxLogSize   int
+	MaxLogBackup int
 }
 
 // Handler is structure for recorder API
@@ -49,18 +52,27 @@ type Handler struct {
 	runningJobID int
 	lock         *sync.Mutex
 
+	logger *logger.Logger
+
 	reportChan chan types.JobStatus
 	cli        *manager.Client
 }
 
 // NewHandler create new instance of Handler struct
-func NewHandler(c Config) *Handler {
-	h := &Handler{c: c, lock: &sync.Mutex{}, reportChan: make(chan types.JobStatus)}
+func NewHandler(c Config) (*Handler, error) {
+	err := os.MkdirAll(c.LogDir, 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	h := &Handler{c: c, lock: &sync.Mutex{}, reportChan: make(chan types.JobStatus),
+		logger: logger.New(c.MaxLogSize, c.MaxLogBackup, filepath.Join(c.LogDir, "cd-runner.log")),
+	}
 	h.cli = manager.NewClient(c.MgrHost, c.MgrPort)
 
 	go h.reportLoop()
 
-	return h
+	return h, nil
 }
 
 func (h *Handler) CreateRouter() *mux.Router {
@@ -113,15 +125,15 @@ func (h *Handler) Run(ctx context.Context) error {
 	for {
 		job, err := h.cli.AcquireJob(h.c.Name)
 		if err != nil {
-			log.Printf("Request job: %s", err)
+			h.logger.Infof("Request job: %s", err)
 		} else if job != nil {
-			log.Printf("Run job: %v", job)
+			h.logger.Infof("Run job: %v", job)
 			h.lock.Lock()
 			h.runningJobID = job.ID
 			h.lock.Unlock()
 			status, err := h.runJob(ctx, job)
 			if err != nil {
-				log.Printf("Handle job %+v: %v", job, err)
+				h.logger.Infof("Handle job %+v: %v", job, err)
 			}
 			if status == nil {
 				goto wait
@@ -131,12 +143,12 @@ func (h *Handler) Run(ctx context.Context) error {
 			h.lock.Unlock()
 			err = h.cli.ReportJobStatus(status)
 			if err != nil {
-				log.Printf("Report job %+v: %v", job, err)
+				h.logger.Infof("Report job %+v: %v", job, err)
 			}
 		} else {
 			count++
 			if count > int(5*time.Minute/h.c.Interval) {
-				log.Printf("No jobs in 5 minutes, sleep")
+				h.logger.Infof("No jobs in 5 minutes, sleep")
 				count = 0
 			}
 		}
@@ -176,7 +188,7 @@ func (h *Handler) runJob(ctx context.Context, j *types.Job) (*types.JobStatus, e
 			for {
 				currentJob, err := h.cli.GetJob(j.ID)
 				if err != nil {
-					log.Printf("get job ID failure: %s\n", err)
+					h.logger.Infof("get job ID failure: %s\n", err)
 					goto sleep
 				}
 				if currentJob.EndTime == nil {
@@ -224,7 +236,7 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 		if r.StartTime != nil {
 			startTime := time.Unix(int64(*r.StartTime), 0)
 			if startTime.Before(time.Now()) {
-				log.Printf("start time (%s) is earlier than now (%s)", startTime, time.Now())
+				h.logger.Warnf("start time (%s) is earlier than now (%s)", startTime, time.Now())
 			} else {
 				time.Sleep(time.Until(startTime))
 			}
@@ -291,11 +303,11 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename}
 	}
 
-	fmt.Printf("record started: ffmpeg %v\n", args)
+	h.logger.Infof("record started: ffmpeg %v\n", args)
 	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
 	cmd.Dir = dir
 
-	logoutFilename := filepath.Join(dir, logStdoutFilename)
+	logoutFilename := filepath.Join(h.c.LogDir, logStdoutFilename)
 	logoutFile, err := os.Create(logoutFilename)
 	if err != nil {
 		return &types.JobStatus{
@@ -306,7 +318,7 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	}
 	defer logoutFile.Close()
 
-	logerrFilename := filepath.Join(dir, logStderrFilename)
+	logerrFilename := filepath.Join(h.c.LogDir, logStderrFilename)
 	logerrFile, err := os.Create(logerrFilename)
 	if err != nil {
 		return &types.JobStatus{
@@ -340,25 +352,25 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 		err = runCtx.Err()
 		if err == context.DeadlineExceeded {
 			// recording is end now.
-			log.Printf("recording is exceeding deadline")
+			h.logger.Warnf("recording is exceeding deadline")
 			err = nil
 		}
 	}
 
 	exitCode := cmd.ProcessState.ExitCode()
 	if err == nil && exitCode == 0 {
-		log.Printf("recording finished")
+		h.logger.Infof("recording finished")
 		return &types.JobStatus{ID: id, Type: types.RecordJobEnd}, nil
 	} else {
-		log.Printf("record exitcode: %d, err: %s", cmd.ProcessState.ExitCode(), err)
+		h.logger.Infof("record exitcode: %d, err: %s", cmd.ProcessState.ExitCode(), err)
 	}
 	sout, err := os.ReadFile(logoutFilename)
 	if err != nil {
-		log.Printf("WARN: read stdout log file %s: %s", logoutFilename, err)
+		h.logger.Warnf("read stdout log file %s: %s", logoutFilename, err)
 	}
 	serr, err := os.ReadFile(logerrFilename)
 	if err != nil {
-		log.Printf("WARN: read stderr log file %s: %s", logerrFilename, err)
+		h.logger.Warnf("read stderr log file %s: %s", logerrFilename, err)
 	}
 
 	return &types.JobStatus{
@@ -373,7 +385,7 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *types.JobRecord,
 	id int, dir, masterIndexFilename string) {
 	if r.Mp4FileDuration <= 0 {
-		logrus.Warnf("invalid mp4 record file duration: %ds", r.Mp4FileDuration)
+		h.logger.Warnf("invalid mp4 record file duration: %ds", r.Mp4FileDuration)
 		return
 	}
 	index := 0
@@ -393,54 +405,54 @@ func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *
 		if index == 1 {
 			f, err := os.Create(filepath.Join(dir, dlIndexFilename))
 			if err != nil {
-				logrus.Warnf("create %s: %s", dlIndexFilename, err)
+				h.logger.Warnf("create %s: %s", dlIndexFilename, err)
 				continue
 			}
 
 			content, err = os.ReadFile(masterIndexFilename)
 			if err != nil {
-				logrus.Warnf("read %s: %s", masterIndexFilename, err)
+				h.logger.Warnf("read %s: %s", masterIndexFilename, err)
 			} else {
 				_, err = f.Write(content)
 				if err != nil {
-					logrus.Warnf("copy %s into %s: %s", masterIndexFilename, dlIndexFilename, err)
+					h.logger.Warnf("copy %s into %s: %s", masterIndexFilename, dlIndexFilename, err)
 				}
 			}
 			err = f.Close()
 			if err != nil {
-				logrus.Warnf("close %s: %s", dlIndexFilename, err)
+				h.logger.Warnf("close %s: %s", dlIndexFilename, err)
 				continue
 			}
 		} else {
 			// copy last media file
-			mediaPL, err := trimSegments(masterIndexFilename, filepath.Join(dir, lastIndexFilename))
+			mediaPL, err := h.trimSegments(masterIndexFilename, filepath.Join(dir, lastIndexFilename))
 			if err != nil {
-				logrus.Warnf("trim segment for %s: %s", dlIndexFilename, err)
+				h.logger.Warnf("trim segment for %s: %s", dlIndexFilename, err)
 				continue
 			}
 			content, err = mediaPL.Marshal()
 			if err != nil {
-				logrus.Warnf("marshal media playlist %s: %s", dlIndexFilename, content)
+				h.logger.Warnf("marshal media playlist %s: %s", dlIndexFilename, content)
 				continue
 			}
 			err = os.WriteFile(filepath.Join(dir, dlIndexFilename), content, 0755)
 			if err != nil {
-				logrus.Warnf("write media playlist %s: %s", dlIndexFilename, content)
+				h.logger.Warnf("write media playlist %s: %s", dlIndexFilename, content)
 			}
 		}
-		logrus.Infof("Generated mp4 recording index file %s", filepath.Join(dir, dlIndexFilename))
+		h.logger.Infof("Generated mp4 recording index file %s", filepath.Join(dir, dlIndexFilename))
 		err := h.cli.ReportJobStatus(&types.JobStatus{
 			ID:          id,
 			Type:        types.RecordMp4FileCreated,
 			Mp4Filename: dlFilename,
 		})
 		if err != nil {
-			logrus.Warnf("report mp4 file %s creation: %s", dlIndexFilename, content)
+			h.logger.Warnf("report mp4 file %s creation: %s", dlIndexFilename, content)
 		}
 	}
 }
 
-func trimSegments(currentPl, lastPl string) (*playlist.Media, error) {
+func (h *Handler) trimSegments(currentPl, lastPl string) (*playlist.Media, error) {
 	currMediaPL, err := hls.ParseMediaPlaylist(currentPl)
 	if err != nil {
 		return nil, err
@@ -461,7 +473,7 @@ func trimSegments(currentPl, lastPl string) (*playlist.Media, error) {
 			break
 		}
 	}
-	logrus.Infof("last download segment: %s, new download segments %s -> %s", lastSegmentURI,
+	h.logger.Infof("last download segment: %s, new download segments %s -> %s", lastSegmentURI,
 		currMediaPL.Segments[startIndex].URI,
 		currMediaPL.Segments[len(currMediaPL.Segments)-1].URI)
 

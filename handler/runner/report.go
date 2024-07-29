@@ -1,8 +1,6 @@
 package runner
 
 import (
-	"log"
-
 	"github.com/leslie-wang/clusterd/types"
 )
 
@@ -11,7 +9,7 @@ func (h *Handler) reportLoop() {
 		r := <-h.reportChan
 		err := h.cli.ReportJobStatus(&r)
 		if err != nil {
-			log.Printf("WARN: report %v: %s", r, err)
+			h.logger.Warnf("report %v: %s", r, err)
 		}
 	}
 }

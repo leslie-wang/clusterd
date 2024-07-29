@@ -2,7 +2,6 @@ package manager
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,13 +24,13 @@ func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getCallbackURL(job *types.Job) string {
 	cb, err := h.recordDB.GetCallbackRuleByRecordTaskID(job.RefID)
 	if err != nil {
-		log.Printf("WARN: retrieve job %d's callback info: %s", job.ID, err)
+		h.logger.Warnf("retrieve job %d's callback info: %s", job.ID, err)
 	}
 
 	record := &types.JobRecord{}
 	err = json.Unmarshal([]byte(job.Metadata), record)
 	if err != nil {
-		log.Printf("WARN: unmarshal job record: %v", err)
+		h.logger.Warnf("unmarshal job record: %v", err)
 	}
 
 	callbackURL := h.cfg.NotifyURL
@@ -65,7 +64,7 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 
 	if job.ExitCode != nil {
 		// job has finished before report, no need special report
-		log.Printf("skip report %v as it is completed already", status)
+		h.logger.Debugf("skip report %v as it is completed already", status)
 		return
 	}
 

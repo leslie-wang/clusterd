@@ -12,7 +12,6 @@ import (
 	"github.com/leslie-wang/clusterd/common/hls"
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -103,7 +102,7 @@ func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 	for i, f := range files {
 		_, err = io.Copy(w, f)
 		if err != nil {
-			logrus.Warnf("Download recorded content %s's %d segmenbt: %s", jobID, i+1, err)
+			h.logger.Warnf("Download recorded content %s's %d segmenbt: %s", jobID, i+1, err)
 			return
 		}
 	}
