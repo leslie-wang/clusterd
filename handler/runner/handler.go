@@ -270,6 +270,10 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 
 	var args []string
 	sourceURL := r.RecordStreams[0].SourceURL
+	if r.RecordTimeout > 0 {
+		args = []string{"-rw_timeout", fmt.Sprintf("%d", r.RecordTimeout)}
+	}
+
 	if len(r.RecordStreams) > 1 {
 		vu, err := url.Parse(r.RecordStreams[0].SourceURL)
 		if err != nil {
@@ -295,12 +299,12 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 		if err != nil {
 			return nil, err
 		}
-		args = []string{"-protocol_whitelist", "file,udp,rtp", "-i", sourceURL, "-vcodec", "copy",
+		args = append(args, "-protocol_whitelist", "file,udp,rtp", "-i", sourceURL, "-vcodec", "copy",
 			"-acodec", "aac", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
-			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename}
+			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename)
 	} else {
-		args = []string{"-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
-			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename}
+		args = append(args, "-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
+			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename)
 	}
 
 	h.logger.Infof("record started: ffmpeg %v\n", args)
