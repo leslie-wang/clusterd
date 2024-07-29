@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	//"log"
 	"math/rand"
 	"net/url"
 	"reflect"
@@ -278,12 +277,10 @@ func CompleteCommonParams(request Request, region string, requestClient string) 
 func ConstructParams(req Request) (err error) {
 	value := reflect.ValueOf(req).Elem()
 	err = flatStructure(value, req, "")
-	//log.Printf("[DEBUG] params=%s", req.GetParams())
 	return
 }
 
 func flatStructure(value reflect.Value, request Request, prefix string) (err error) {
-	//log.Printf("[DEBUG] reflect value: %v", value.Type())
 	valueType := value.Type()
 	for i := 0; i < valueType.NumField(); i++ {
 		tag := valueType.Field(i).Tag

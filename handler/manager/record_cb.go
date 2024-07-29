@@ -3,7 +3,6 @@ package manager
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 )
@@ -28,10 +27,10 @@ const (
 func notify(url string, sessionID string, event interface{}) {
 	content, err := json.Marshal(event)
 	if err != nil {
-		log.Printf("WARN: generate json while notifying %v: %s", event, err)
+		defaultLogger.Warnf("generate json while notifying %v: %s", event, err)
 		return
 	}
-	log.Printf("INFO: jobd %s notify %s: %s", sessionID, url, string(content))
+	defaultLogger.Infof("jobd %s notify %s: %s", sessionID, url, string(content))
 	buf := bytes.NewBuffer(content)
 	for i := 0; i < retryNotifyCount; i++ {
 		resp, err := http.Post(url, "application/json", buf)
@@ -39,11 +38,11 @@ func notify(url string, sessionID string, event interface{}) {
 			resp.Body.Close()
 			return
 		} else if err != nil {
-			log.Printf("WARN: notify %s: %s", string(content), err)
+			defaultLogger.Warnf("notify %s: %s", string(content), err)
 		} else {
-			log.Printf("WARN: notify %s got %d", string(content), resp.StatusCode)
+			defaultLogger.Warnf("notify %s got %d", string(content), resp.StatusCode)
 		}
 		time.Sleep(retryNotifyInterval)
 	}
-	log.Printf("WARN: failed to notify %s after retry", string(content))
+	defaultLogger.Warnf("failed to notify %s after retry", string(content))
 }

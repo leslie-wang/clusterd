@@ -3,14 +3,12 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"strconv"
-
 	"net/http"
-
-	"encoding/json"
+	"strconv"
 
 	"github.com/leslie-wang/clusterd/common/errors"
 )

@@ -2,9 +2,10 @@ package manager
 
 import (
 	"database/sql"
-	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/leslie-wang/clusterd/common/db"
 	"github.com/leslie-wang/clusterd/common/db/job"
 	"github.com/leslie-wang/clusterd/common/db/record"
+	"github.com/leslie-wang/clusterd/common/logger"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
@@ -30,6 +32,10 @@ type Config struct {
 	NotifyURL        string
 	BaseURL          string
 	MediaDir         string
+
+	LogDir       string
+	MaxLogSize   int
+	MaxLogBackup int
 }
 
 // Handler is structure for recorder API
@@ -42,16 +48,29 @@ type Handler struct {
 	recordDB *record.DB
 	jobDB    *job.DB
 
+	logger *logger.Logger
+
 	runners map[string]time.Time // <runner_name, last checkin time>
 }
 
+var defaultLogger *logger.Logger
+
 // NewHandler create new instance of Handler struct
 func NewHandler(c Config) (*Handler, error) {
+	err := os.MkdirAll(c.LogDir, 0644)
+	if err != nil {
+		return nil, err
+	}
+
 	h := &Handler{
 		cfg:     c,
 		lock:    &sync.Mutex{},
 		runners: map[string]time.Time{},
+		logger:  logger.New(c.MaxLogSize, c.MaxLogBackup, filepath.Join(c.LogDir, "cd-manager.log")),
 	}
+
+	defaultLogger = h.logger
+
 	return h, h.init()
 }
 
@@ -59,7 +78,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Do stuff here
 		if !strings.Contains(r.RequestURI, types.URLJobRunner) {
-			log.Printf("%s - %s", r.Method, r.RequestURI)
+			defaultLogger.Debugf("%s - %s", r.Method, r.RequestURI)
 		}
 		// Call the next handler, which can be another middleware in the chain, or the final handler.
 		next.ServeHTTP(w, r)

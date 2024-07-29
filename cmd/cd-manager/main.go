@@ -75,6 +75,21 @@ func main() {
 			Usage: "directory to store all recorded videos",
 			Value: "/mnt/media",
 		},
+		cli.StringFlag{
+			Name:  "log-dir, ld",
+			Usage: "directory to store all logs",
+			Value: "/var/log/clusterd",
+		},
+		cli.IntFlag{
+			Name:  "max-log-size",
+			Usage: "maximum size in megabytes of the log file before it get rotated",
+			Value: 100,
+		},
+		cli.IntFlag{
+			Name:  "max-log-backups",
+			Usage: "maximum number of old log files to retain",
+			Value: 25,
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -99,6 +114,9 @@ func serve(ctx *cli.Context) error {
 		NotifyURL:        ctx.String("notify-url"),
 		BaseURL:          fmt.Sprintf("http://%s%s", ctx.String("ip"), host),
 		MediaDir:         ctx.String("media-dir"),
+		LogDir:           ctx.String("log-dir"),
+		MaxLogSize:       ctx.Int("max-log-size"),
+		MaxLogBackup:     ctx.Int("max-log-backups"),
 	}
 	if parts[0] == db.MySQL {
 		cfg.Driver = db.MySQL
