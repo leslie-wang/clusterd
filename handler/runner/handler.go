@@ -27,8 +27,8 @@ import (
 
 const (
 	recordFilename    = "index.m3u8"
-	logStdoutFilename = "record_out.log"
-	logStderrFilename = "record_err.log"
+	logStdoutFilename = "record-%d_out.log"
+	logStderrFilename = "record-%d_err.log"
 )
 
 // Config is configuration for the handler
@@ -300,10 +300,10 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 			return nil, err
 		}
 		args = append(args, "-protocol_whitelist", "file,udp,rtp", "-i", sourceURL, "-vcodec", "copy",
-			"-acodec", "aac", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
+			"-acodec", "aac", "-bsf:a", "aac_adtstoasc", "-hls_time", "6",
 			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename)
 	} else {
-		args = append(args, "-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "10",
+		args = append(args, "-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "6",
 			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename)
 	}
 
@@ -311,7 +311,7 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	cmd := exec.CommandContext(runCtx, "ffmpeg", args...)
 	cmd.Dir = dir
 
-	logoutFilename := filepath.Join(h.c.LogDir, logStdoutFilename)
+	logoutFilename := filepath.Join(h.c.LogDir, fmt.Sprintf(logStdoutFilename, id))
 	logoutFile, err := os.Create(logoutFilename)
 	if err != nil {
 		return &types.JobStatus{
@@ -322,7 +322,7 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	}
 	defer logoutFile.Close()
 
-	logerrFilename := filepath.Join(h.c.LogDir, logStderrFilename)
+	logerrFilename := filepath.Join(h.c.LogDir, fmt.Sprintf(logStderrFilename, id))
 	logerrFile, err := os.Create(logerrFilename)
 	if err != nil {
 		return &types.JobStatus{
