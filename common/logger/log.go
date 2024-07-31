@@ -16,11 +16,14 @@ func New(maxSize, maxBackup int, filename string) *Logger {
 		MaxBackups: maxBackup,
 		Compress:   true,
 	}
-	l := &Logger{
-		logger: &logrus.Logger{Out: rl},
+
+	l := logrus.New()
+	l.Out = rl
+	lw := &Logger{
+		logger: l,
 	}
 
-	return l
+	return lw
 }
 
 func (l *Logger) Debugf(format string, args ...interface{}) {
