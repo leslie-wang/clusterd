@@ -29,5 +29,8 @@ release:
 install:
 	go install -v ./cmd/...
 
+test:
+	go test -v ./common/...
+
 integration-test-sqlite: install
 	go test  -v ./tests/integration-sqlite/
