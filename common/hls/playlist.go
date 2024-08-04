@@ -24,3 +24,11 @@ func ParseMediaPlaylist(filename string) (*playlist.Media, error) {
 	}
 	return mediaPL, nil
 }
+
+func CalculateDuration(media *playlist.Media) uint64 {
+	var d float64
+	for _, seg := range media.Segments {
+		d += seg.Duration.Seconds()
+	}
+	return uint64(d * 1000)
+}

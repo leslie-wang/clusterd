@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/leslie-wang/clusterd/common/hls"
+	"github.com/leslie-wang/clusterd/common/mp4processor"
 	"github.com/leslie-wang/clusterd/common/util"
 	"github.com/leslie-wang/clusterd/types"
 )
@@ -41,6 +42,21 @@ func (h *Handler) playback(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath.Join(h.cfg.MediaDir, jobID, filename))
 }
 
+func (h *Handler) mkNewInitfile(f string, duration uint64) (*os.File, error) {
+	newInitFile, err := os.CreateTemp("", "init-mp4-")
+	if err != nil {
+		return nil, err
+	}
+	err = mp4processor.RewriteDuration(f, newInitFile,
+		duration, duration)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = newInitFile.Seek(0, io.SeekStart)
+	return newInitFile, err
+}
+
 func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	jobID := vars[types.ID]
@@ -52,23 +68,39 @@ func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 	} else {
 		filename = strings.Trim(filename, filepath.Ext(filename)) + ".m3u8"
 	}
+
+	h.logger.Infof("Serving %s", filename)
+
 	mediaPL, err := hls.ParseMediaPlaylist(filepath.Join(dir, filename))
 	if err != nil {
 		util.WriteError(w, err)
 		return
 	}
 
+	duration := hls.CalculateDuration(mediaPL)
+
 	initFile := defaultInitFile
 	if mediaPL.Map != nil && mediaPL.Map.URI != "" {
 		initFile = mediaPL.Map.URI
 	}
 
-	f, err := os.Open(filepath.Join(dir, initFile))
+	f, err := h.mkNewInitfile(filepath.Join(dir, initFile), duration)
 	if err != nil {
 		util.WriteError(w, err)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			h.logger.Warnf("close %s: %s", f.Name(), err)
+			return
+		}
+		err = os.Remove(f.Name())
+		if err != nil {
+			h.logger.Warnf("remove %s: %v", f.Name(), err)
+		}
+	}()
+
 	files := []*os.File{f}
 
 	stat, err := f.Stat()
@@ -98,6 +130,7 @@ func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", contentLength))
 	w.Header().Set("Content-Type", "video/mp4")
+	w.Header().Set("Content-Disposition", "attachment")
 
 	for i, f := range files {
 		_, err = io.Copy(w, f)
