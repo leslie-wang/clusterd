@@ -1,9 +1,17 @@
 package manager
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
+	"net/url"
+	"os"
+	"strconv"
 
+	"github.com/leslie-wang/clusterd/common"
+	"github.com/leslie-wang/clusterd/common/model"
 	"github.com/leslie-wang/clusterd/common/util"
+	"github.com/leslie-wang/clusterd/types"
 )
 
 const (
@@ -23,6 +31,8 @@ const (
 	ActionCreateRecordTask   = "CreateRecordTask"
 	ActionDeleteRecordTask   = "DeleteRecordTask"
 	ActionStopRecordTask     = "StopRecordTask"
+
+	ActionDeleteRecordFile = "DeleteRecordFile"
 
 	ActionDescribeLiveCallbackRules = "DescribeLiveCallbackRules"
 	ActionCreateLiveCallbackRule    = "CreateLiveCallbackRule"
@@ -153,12 +163,46 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 	case ActionDeleteLiveCallbackTemplate:
 		resp, err = h.handleDeleteLiveCallbackTemplate(q)
 
+	case ActionDeleteRecordFile:
+		err = h.handleDeleteRecordFile(q)
+
 	default:
 		err = util.ErrNotSupportedAPI
 	}
 	if err != nil {
 		util.WriteError(w, err)
-	} else {
+	} else if resp != nil {
 		util.WriteBody(w, resp)
 	}
+}
+
+func (h *Handler) handleDeleteRecordFile(q url.Values) error {
+	tid := q.Get(TaskID)
+	if tid == "" {
+		return errors.New(model.INVALIDPARAMETERVALUE)
+	}
+
+	id, err := strconv.Atoi(tid)
+	if err != nil {
+		return err
+	}
+
+	j, err := h.jobDB.Get(id)
+	if err != nil {
+		return err
+	}
+
+	r := &types.JobRecord{}
+	err = json.Unmarshal([]byte(j.Metadata), r)
+	if err != nil {
+		return err
+	}
+
+	storePath := r.StorePath
+	if storePath == "" {
+		storePath = h.cfg.MediaDir
+	}
+	dir := common.MkStoragePath(storePath, tid)
+
+	return os.RemoveAll(dir)
 }
