@@ -18,6 +18,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/leslie-wang/clusterd/client/manager"
+	"github.com/leslie-wang/clusterd/common"
 	"github.com/leslie-wang/clusterd/common/hls"
 	"github.com/leslie-wang/clusterd/common/logger"
 	"github.com/leslie-wang/clusterd/common/util"
@@ -257,7 +258,7 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	if storePath == "" {
 		storePath = h.c.Workdir
 	}
-	dir := filepath.Join(storePath, strconv.Itoa(id))
+	dir := common.MkStoragePath(storePath, strconv.Itoa(id))
 	err := os.MkdirAll(dir, 0777)
 	if err != nil {
 		return &types.JobStatus{
