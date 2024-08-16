@@ -18,6 +18,7 @@ func New(maxSize, maxBackup int, filename string) *Logger {
 	}
 
 	l := logrus.New()
+	l.Level = logrus.InfoLevel
 	l.Out = rl
 	lw := &Logger{
 		logger: l,

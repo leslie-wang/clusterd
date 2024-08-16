@@ -365,7 +365,22 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 	exitCode := cmd.ProcessState.ExitCode()
 	if err == nil && exitCode == 0 {
 		h.logger.Infof("recording finished")
-		return &types.JobStatus{ID: id, Type: types.RecordJobEnd}, nil
+
+		var duration, size uint64
+		mediaPL, err := hls.ParseMediaPlaylist(masterIndexFilename)
+		if err != nil {
+			h.logger.Warnf("parse master index file %s: %s", masterIndexFilename, err)
+		} else {
+			duration = hls.CalculateDuration(mediaPL)
+			size = hls.CalculateFileSize(dir, mediaPL, h.logger)
+		}
+
+		return &types.JobStatus{
+			ID:       id,
+			Type:     types.RecordJobEnd,
+			Size:     size,
+			Duration: duration,
+		}, nil
 	} else {
 		h.logger.Infof("record exitcode: %d, err: %s", cmd.ProcessState.ExitCode(), err)
 	}
@@ -406,9 +421,14 @@ func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *
 		dlIndexFilename := fmt.Sprintf("dl%d.m3u8", index)
 		lastIndexFilename := fmt.Sprintf("dl%d.m3u8", index-1)
 		dlFilename := fmt.Sprintf("dl%d.mp4", index)
-		var content []byte
+		var (
+			err     error
+			content []byte
+			mediaPL *playlist.Media
+		)
 		if index == 1 {
-			f, err := os.Create(filepath.Join(dir, dlIndexFilename))
+			fname := filepath.Join(dir, dlIndexFilename)
+			f, err := os.Create(fname)
 			if err != nil {
 				h.logger.Warnf("create %s: %s", dlIndexFilename, err)
 				continue
@@ -428,9 +448,15 @@ func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *
 				h.logger.Warnf("close %s: %s", dlIndexFilename, err)
 				continue
 			}
+
+			mediaPL, err = hls.ParseMediaPlaylist(fname)
+			if err != nil {
+				h.logger.Warnf("parse %s: %s", fname, err)
+				continue
+			}
 		} else {
 			// copy last media file
-			mediaPL, err := h.trimSegments(masterIndexFilename, filepath.Join(dir, lastIndexFilename))
+			mediaPL, err = h.trimSegments(masterIndexFilename, filepath.Join(dir, lastIndexFilename))
 			if err != nil {
 				h.logger.Warnf("trim segment for %s: %s", dlIndexFilename, err)
 				continue
@@ -446,10 +472,15 @@ func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *
 			}
 		}
 		h.logger.Infof("Generated mp4 recording index file %s", filepath.Join(dir, dlIndexFilename))
-		err := h.cli.ReportJobStatus(&types.JobStatus{
+
+		duration := hls.CalculateDuration(mediaPL)
+		size := hls.CalculateFileSize(dir, mediaPL, h.logger)
+		err = h.cli.ReportJobStatus(&types.JobStatus{
 			ID:          id,
 			Type:        types.RecordMp4FileCreated,
 			Mp4Filename: dlFilename,
+			Duration:    duration,
+			Size:        size,
 		})
 		if err != nil {
 			h.logger.Warnf("report mp4 file %s creation: %s", dlIndexFilename, content)

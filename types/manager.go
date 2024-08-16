@@ -84,6 +84,8 @@ type JobStatus struct {
 	Stdout      string        `json:"stdout"`
 	Stderr      string        `json:"stderr"`
 	Mp4Filename string        `json:"mp4_filename"`
+	Size        uint64        `json:"size"`
+	Duration    uint64        `json:"duration"`
 }
 
 type LiveRecordRule struct {
@@ -226,4 +228,6 @@ type LiveCallbackRecordStatusEvent struct {
 	Sequence     string                `json:"seq"`
 	SessionID    string                `json:"session_id"`
 	StreamID     string                `json:"stream_id"`
+	Size         uint64                `json:"size"`
+	Duration     uint64                `json:"duration"`
 }

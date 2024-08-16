@@ -50,7 +50,7 @@ func main() {
 			Value: types.RunnerPort,
 		},
 		cli.StringFlag{
-			Name:  "media-dir, wd",
+			Name:  "media-dir, md",
 			Usage: "local directory for recorded video",
 			Value: filepath.Join(wd, "runner"),
 		},
