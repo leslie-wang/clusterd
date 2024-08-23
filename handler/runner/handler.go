@@ -414,6 +414,7 @@ func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *
 	index := 0
 	for {
 		index++
+		start := time.Now()
 		after := time.After(time.Duration(r.Mp4FileDuration) * time.Second)
 		select {
 		case <-after:
@@ -423,7 +424,6 @@ func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *
 		// create a new m3u8 file
 		dlIndexFilename := fmt.Sprintf("dl%d.m3u8", index)
 		lastIndexFilename := fmt.Sprintf("dl%d.m3u8", index-1)
-		dlFilename := fmt.Sprintf("dl%d.mp4", index)
 		var (
 			err     error
 			content []byte
@@ -474,14 +474,24 @@ func (h *Handler) generateIntermittentDownloadIndexFile(ctx context.Context, r *
 				h.logger.Warnf("write media playlist %s: %s", dlIndexFilename, content)
 			}
 		}
+
 		h.logger.Infof("Generated mp4 recording index file %s", filepath.Join(dir, dlIndexFilename))
+
+		timestampIndexFilename := fmt.Sprintf("%d-%d-%d-%d-%d-%d-%d", id,
+			start.Year(), start.Month(), start.Day(),
+			start.Hour(), start.Minute(), start.Second())
+
+		err = os.Symlink(filepath.Join(dir, dlIndexFilename), filepath.Join(dir, timestampIndexFilename)+".m3u8")
+		if err != nil {
+			h.logger.Warnf("link file %s.m3u8: %s", timestampIndexFilename, err)
+		}
 
 		duration := hls.CalculateDuration(mediaPL)
 		size := hls.CalculateFileSize(dir, mediaPL, h.logger)
 		err = h.cli.ReportJobStatus(&types.JobStatus{
 			ID:          id,
 			Type:        types.RecordMp4FileCreated,
-			Mp4Filename: dlFilename,
+			Mp4Filename: timestampIndexFilename + ".mp4",
 			Duration:    duration,
 			Size:        size,
 		})
