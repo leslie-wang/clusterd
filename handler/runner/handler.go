@@ -301,10 +301,11 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 			return nil, err
 		}
 		args = append(args, "-protocol_whitelist", "file,udp,rtp", "-i", sourceURL, "-vcodec", "copy",
-			"-acodec", "aac", "-bsf:a", "aac_adtstoasc", "-hls_time", "6",
+			"-acodec", "aac", "-bsf:a", "aac_adtstoasc", "-hls_time", fmt.Sprintf("%d", r.HlsSegmentDuration),
 			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename)
 	} else {
-		args = append(args, "-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-hls_time", "6",
+		args = append(args, "-i", sourceURL, "-c", "copy", "-bsf:a", "aac_adtstoasc",
+			"-hls_time", fmt.Sprintf("%d", r.HlsSegmentDuration),
 			"-hls_playlist_type", "event", "-hls_segment_type", "fmp4", "-hls_segment_filename", "%d.m4s", masterIndexFilename)
 	}
 
