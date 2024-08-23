@@ -362,18 +362,18 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 		}
 	}
 
+	var duration, size uint64
+	mediaPL, err := hls.ParseMediaPlaylist(masterIndexFilename)
+	if err != nil {
+		h.logger.Warnf("parse master index file %s: %s", masterIndexFilename, err)
+	} else {
+		duration = hls.CalculateDuration(mediaPL)
+		size = hls.CalculateFileSize(dir, mediaPL, h.logger)
+	}
+
 	exitCode := cmd.ProcessState.ExitCode()
 	if err == nil && exitCode == 0 {
 		h.logger.Infof("recording finished")
-
-		var duration, size uint64
-		mediaPL, err := hls.ParseMediaPlaylist(masterIndexFilename)
-		if err != nil {
-			h.logger.Warnf("parse master index file %s: %s", masterIndexFilename, err)
-		} else {
-			duration = hls.CalculateDuration(mediaPL)
-			size = hls.CalculateFileSize(dir, mediaPL, h.logger)
-		}
 
 		return &types.JobStatus{
 			ID:       id,
@@ -399,6 +399,8 @@ func (h *Handler) runRecordJob(ctx context.Context, id int, r *types.JobRecord) 
 		ExitCode: exitCode,
 		Stdout:   string(sout),
 		Stderr:   string(serr),
+		Size:     size,
+		Duration: duration,
 	}, nil
 }
 
