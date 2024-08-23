@@ -106,6 +106,8 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 			SessionID:   sessionID,
 			RecordEvent: types.LiveRecordStatusError,
 			DownloadURL: h.mkDownloadURL(jobID, ""),
+			Size:        status.Size,
+			Duration:    status.Duration,
 		})
 		err = h.jobDB.CompleteAndArchive(int64(jobID), &status.ExitCode)
 		if err != nil {
