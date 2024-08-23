@@ -3294,11 +3294,12 @@ type CreateRecordTaskRequestParams struct {
 	Extension *string `json:"Extension,omitempty" name:"Extension"`
 
 	// video solar definition
-	RecordStreams   []RecordInputStream `json:"RecordStreams,omitempty" name:"RecordStreams"`
-	StorePath       string              `json:"StorePath,omitempty" name:"StorePath"`
-	NotifyURL       string              `json:"NotifyURL,omitempty" name:"NotifyURL"`
-	Mp4FileDuration uint                `json:"Mp4FileDuration,omitempty" name:"Mp4FileDuration"`
-	RecordTimeout   string              `json:"RecordTimeout,omitempty" name:"RecordTimeout"`
+	RecordStreams      []RecordInputStream `json:"RecordStreams,omitempty" name:"RecordStreams"`
+	StorePath          string              `json:"StorePath,omitempty" name:"StorePath"`
+	NotifyURL          string              `json:"NotifyURL,omitempty" name:"NotifyURL"`
+	Mp4FileDuration    uint                `json:"Mp4FileDuration,omitempty" name:"Mp4FileDuration"`
+	HlsSegmentDuration uint                `json:"HlsSegmentDuration,omitempty" name:"HlsSegmentDuration"`
+	RecordTimeout      string              `json:"RecordTimeout,omitempty" name:"RecordTimeout"`
 }
 
 type CreateRecordTaskRequest struct {

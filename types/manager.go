@@ -59,13 +59,14 @@ type Job struct {
 }
 
 type JobRecord struct {
-	NotifyURL       string
-	StorePath       string
-	StartTime       *uint64
-	EndTime         *uint64
-	RecordStreams   []model.RecordInputStream
-	Mp4FileDuration uint
-	RecordTimeout   int64
+	NotifyURL          string
+	StorePath          string
+	StartTime          *uint64
+	EndTime            *uint64
+	RecordStreams      []model.RecordInputStream
+	Mp4FileDuration    uint
+	HlsSegmentDuration uint
+	RecordTimeout      int64
 }
 
 type JobStatusType int

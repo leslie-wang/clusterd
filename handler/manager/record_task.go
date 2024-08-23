@@ -86,7 +86,7 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 			return nil, err
 		}
 		if r.EndTime == nil {
-			return nil, errors.New("EndTime can not be empty")
+			return nil, errors.New("endTime can not be empty")
 		}
 		task.CreateRecordTaskRequestParams = r
 	} else {
@@ -98,7 +98,14 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 	}
 
 	if len(task.RecordStreams) == 0 || task.RecordStreams[0].SourceURL == "" {
-		return nil, errors.New("SourceURL can not be empty")
+		return nil, errors.New("sourceURL can not be empty")
+	}
+
+	hlsSegDuration := task.HlsSegmentDuration
+	if hlsSegDuration == 0 {
+		hlsSegDuration = 6 // 6 second segment duration by default
+	} else if task.HlsSegmentDuration > 60 || task.HlsSegmentDuration < 6 {
+		return nil, errors.New("invalid hls segment duration. Need >= 6s, or <=60")
 	}
 
 	tx, err := h.newTx()
@@ -108,7 +115,7 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 	defer tx.Rollback()
 
 	if task.DomainName == nil {
-		return nil, errors.New("DomainName can not be empty")
+		return nil, errors.New("domainName can not be empty")
 	}
 
 	id, err := h.recordDB.InsertRecordTask(tx, task)
@@ -117,11 +124,12 @@ func (h *Handler) handleCreateRecordTask(q url.Values, request io.ReadCloser) (*
 	}
 
 	record := &types.JobRecord{
-		RecordStreams:   task.RecordStreams,
-		NotifyURL:       task.NotifyURL,
-		StorePath:       task.StorePath,
-		EndTime:         task.EndTime,
-		Mp4FileDuration: task.Mp4FileDuration,
+		RecordStreams:      task.RecordStreams,
+		NotifyURL:          task.NotifyURL,
+		StorePath:          task.StorePath,
+		EndTime:            task.EndTime,
+		Mp4FileDuration:    task.Mp4FileDuration,
+		HlsSegmentDuration: hlsSegDuration,
 	}
 	if task.RecordTimeout != "" {
 		timeout, err := time.ParseDuration(task.RecordTimeout)
