@@ -62,15 +62,27 @@ func (h *Handler) reportJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionID := strconv.Itoa(jobID)
+	callbackURL := h.getCallbackURL(job)
+
 	if job.ExitCode != nil {
-		// job has finished before report, no need special report
-		h.logger.Debugf("skip report %v as it is completed already", status)
+		event := &types.LiveCallbackRecordStatusEvent{
+			SessionID:   sessionID,
+			RecordEvent: types.LiveRecordStatusEnded,
+			DownloadURL: h.mkDownloadURL(jobID, ""),
+			Size:        status.Size,
+			Duration:    status.Duration,
+		}
+		// job has finished before report, report size and duration
+		if *job.ExitCode == recordSuccess {
+			event.RecordEvent = types.LiveRecordStatusEnded
+		} else {
+			event.RecordEvent = types.LiveRecordStatusStartFailed
+		}
+		go notify(callbackURL, sessionID, event)
 		return
 	}
 
-	callbackURL := h.getCallbackURL(job)
-
-	sessionID := strconv.Itoa(jobID)
 	switch status.Type {
 	case types.RecordJobStart:
 		go notify(callbackURL, sessionID, &types.LiveCallbackRecordStatusEvent{
