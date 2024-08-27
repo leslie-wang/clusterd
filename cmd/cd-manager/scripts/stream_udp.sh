@@ -1,0 +1,1 @@
+ffmpeg -re -i ~/output.mp4 -codec copy -f mpegts udp://localhost:1234

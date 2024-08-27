@@ -49,8 +49,6 @@ func (h *Handler) handleDeleteRecordTask(q url.Values) (*model.DeleteLiveRecordR
 		return nil, util.ErrNotExist
 	}
 
-	callbackURL := h.getCallbackURL(job)
-
 	tx, err := h.newTx()
 	if err != nil {
 		return nil, err
@@ -65,12 +63,6 @@ func (h *Handler) handleDeleteRecordTask(q url.Values) (*model.DeleteLiveRecordR
 	if err != nil {
 		return nil, err
 	}
-
-	go notify(callbackURL, tid, &types.LiveCallbackRecordStatusEvent{
-		SessionID:   tid,
-		RecordEvent: types.LiveRecordStatusEnded,
-		DownloadURL: h.mkDownloadURL(int(id), ""),
-	})
 
 	return &model.DeleteLiveRecordRuleResponse{Response: &model.DeleteLiveRecordRuleResponseParams{}}, tx.Commit()
 }
